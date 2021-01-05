@@ -1,0 +1,109 @@
+# *~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*
+# *  DREAM info parameter file  *
+# *~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*
+
+# This example of input file lists all possible and allowed parameters
+# for the DREAM 'info' subcommand.  Only lines containing an equal 
+# sign not preceded by a sharp sign "#" will be considered by the code,
+# any other line will be ignored.
+
+# The standard syntax is: parameter_name = value
+# A space before and after the "=" sign is necessary.
+
+
+
+# ----------------
+# ----> Cosmology:
+# ----------------
+
+# 1) Insert cosmological model.
+#    See https://bdiemer.bitbucket.io/colossus/cosmology_cosmology.html
+#    for available models.
+#    The cosmological model needs to be always defined.
+#    This must be the same as provided to generate the catalogue.
+#    If not given, the code will assume as default: planck18.
+cosmological_model = planck18
+
+
+
+# -------------------------------------
+# ----> Parents and mergers parameters:
+# -------------------------------------
+
+# 1) State if in your mergers txt file you have stored the z_at_merge.
+#    Options: 'yes' and 'no'.
+#    If yes, the code will read it from file.
+#    If no, the code will calculate it from the merging timescale.
+#    Default: 'no'
+exist_z_at_merge = no
+
+# 2) State if you want to get the first accretion redshift distribution.
+#    Options: 'yes' and 'no'.
+#    Default: 'yes'
+#want_z_infall_pdf = yes
+
+# 3) State if you want to get the (un)evolved
+#    subhalo mass functions and the mergers rate.
+#    Options: 'yes' and 'no'.
+#    Default:
+#        - want_unevolved_shmf = no
+#        - want_evolved_shmf = no
+#        - want_mergers_rate = no
+#want_unevolved_shmf = yes
+#want_evolved_shmf = yes
+want_mergers_rate = yes
+
+# 4) Halo mass range.
+#    If one of the options in section 3) is 'yes',
+#    then the following parameters are necessary.
+#    Insert the list of the halo mass bin within which you wish
+#    to calculate the mass functions.
+#halo_masses = [13., 13.5, 14.]
+halo_masses = [11.]
+#halo_masses = [13., 14.]
+halo_mass_bin = 0.2
+
+
+
+# ------------------------------
+# ----> Stellar mass parameters:
+# ------------------------------
+
+# 1) Insert the parametrization for the SMHM relation or filename.
+#    This will be used to assign the stellar mass to the (sub)haloes.
+#    If both are given, the code will adopt the SMHM from file.
+#    Default: Data/SMHM_relations/SMHM_constant_sigma.txt
+#SMHM_file = Data/SMHM_relations/SMHM_constant_sigma.txt
+#SMHM_file = Data/SMHM_relations/SMHM_null_sigma.txt
+SMHM_model = Grylls_2019
+
+# 2) Insert the value of the scatter in the SMHM.
+#    Default: 0
+scatter = 0.
+
+
+
+# --------------------------------
+# ----> Star formation parameters:
+# --------------------------------
+
+# 1) Parameters for the star formation rate output.
+#    - compute_SF:
+#        indicate if you want to compute the SFR and SFH
+#        options: 'yes' or 'no'
+#        Default: 'yes'
+#    - redshifts_for_SFR:
+#        list the redshifts for which you want to plot the SFR-Mstar relation
+#        this should be given as a python list format
+#        Default: [0, 1, 2, 3]
+#    - stellar_masses_for_SFR:
+#        list the log10(Mstar) for which you want to calculate the SFR and SFH
+#        this should be given as a python list format
+#        Default: [11]
+compute_SF = yes
+redshifts_for_SFR = [0.1, 1, 2]
+#redshifts_for_SFR = [0., 0.2, 0.4, 0.6, 0.8, 1., 1.2, 1.4, 1.6, 1.8, 2., 2.2, 2.4, 2.6, 2.8, 3., 3.2, 3.4, 3.6, 3.8, 4., 4.2, 4.4, 4.6, 4.8, 5., 5.2, 5.4, 5.6, 5.8, 6.]
+#stellar_masses_for_SF = [8., 10.5, 11, 11.5, 12.]
+stellar_masses_for_SF = [12.]
+
+
