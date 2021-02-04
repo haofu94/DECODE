@@ -58,13 +58,54 @@ def SMHM_Moster(DM, Params, z):
     b = beta10 + beta11*zparameter
     g = gamma10 + gamma11*zparameter
 
-    SM = np.power(10, DM) * (2*N*np.power( (np.power(np.power(10,DM-M), -b) + np.power(np.power(10,DM-M), g)), -1))
+    SM = np.power(10, DM) * 2*N* np.power( (np.power(np.power(10,DM-M), -b) + np.power(np.power(10,DM-M), g)), -1)
     SM = np.log10(SM)
 
     if Scatter !=0.:
         return np.random.normal(loc = SM, scale = Scatter, size = np.shape(SM))
     else:
         return SM
+
+
+def SMHM_Behroozi_2013(DarkMatter, z, Scatter):
+
+    e = np.array([-1.777, -0.006, 0.000, -0.119])
+    M = np.array([11.514,-1.793,-0.251])
+    alpha = np.array([-1.412,0.731])
+    delta = np.array([3.508,2.608,-0.043])
+    gamma_b = np.array([0.361,1.391,0.279])
+    ep = np.array([0.218,-0.023])
+
+    a      = 1/(1+z)
+    afac   = a-1
+    v_     = np.exp(-4*np.power(a,2))
+    M_     = M[0]       + (M[1]      *afac +M[2]*z      )*v_
+    e_     = e[0]       + (e[1]      *afac +e[2]*z      )*v_ + e[3]*afac
+    alpha_ = alpha[0]   + (alpha[1]  *afac              )*v_
+    delta_ = delta[0]   + (delta[1]  *afac +delta[2]*z  )*v_
+    gamma_ = gamma_b[0] + (gamma_b[1]*afac +gamma_b[2]*z)*v_
+    ep_    = ep[0]      + (ep[1]*afac                   )
+
+
+    e_ = np.power(10, e_)
+    M_ = np.power(10, M_)
+
+    def f(x, a = alpha_, d = delta_, g = gamma_):
+        Part1 = np.log10(np.power(10, a*x) + 1)
+        Part2 = np.power(np.log10(1+np.exp(x)),g)
+        Part3 = 1 + np.exp(np.power(10, -x))
+        return -Part1 + d*np.divide(Part2, Part3)
+
+    Part1 = np.log10(e_*M_)
+    Part2 = f( np.log10( np.divide(np.power(10,DarkMatter), M_) ) )
+    Part3 = f(0)
+
+    M_Star = Part1 + Part2 - Part3
+    if Scatter!=0.:
+        Scatter = np.random.normal(scale = Scatter, size = np.shape(M_Star))
+        return M_Star + Scatter
+    else:
+        return M_Star
 
 
 def SMHM_Behroozi(DM, z, scatter):
@@ -95,7 +136,10 @@ def SMHM_Behroozi(DM, z, scatter):
 
     x = DM - logM1
 
-    SM = logM1 + e - np.log10(np.power(10., -a*x) + np.power(10., -b*x)) + g*np.exp(-0.5 * np.power(x/d,2)) + np.random.normal(0, scatter)
+    SM = logM1 + e - np.log10(np.power(10., -a*x) + np.power(10., -b*x)) + g * np.exp(-0.5 * np.power(np.divide(x,d), 2))
+
+    if scatter != 0.:
+        SM += np.random.normal(0, scatter)
 
     return SM
 

@@ -16,46 +16,43 @@
 
 
 
+
 int SMHM_read_matrix(stellar_mass_halo_mass *SMHM,
-                     int *smhm_data_rows,
-                     int *smhm_data_cols,
-                     double **smhm_data_matrix,
-                     double **smhm_data_redshift,
-                     double **smhm_data_Mstar){
+                         SMHM_matrix **smhm_data){
 
   int i, j;
 
   FILE *file_pointer;
   file_pointer = fopen(SMHM->file, "r");
-  fscanf(file_pointer, "%d %d", &(*smhm_data_rows), &(*smhm_data_cols));
+  fscanf(file_pointer, "%d %d", &(*smhm_data)->rows, &(*smhm_data)->cols);
 
-  dream_call(double_malloc((*smhm_data_rows-1)*(*smhm_data_cols-1),
-                            &(*smhm_data_matrix)),
+  dream_call(double_malloc(((*smhm_data)->rows-1) * ((*smhm_data)->cols-1),
+                            &(*smhm_data)->matrix),
               _alloc_error_message_);
 
-  dream_call(double_malloc(*smhm_data_cols-1,
-                            &(*smhm_data_redshift)),
+  dream_call(double_malloc((*smhm_data)->cols-1,
+                            &(*smhm_data)->redshift),
               _alloc_error_message_);
 
-  dream_call(double_malloc(*smhm_data_rows-1,
-                            &(*smhm_data_Mstar)),
+  dream_call(double_malloc((*smhm_data)->rows-1,
+                            &(*smhm_data)->Mstar),
               _alloc_error_message_);
 
-  for (j=0; j<*smhm_data_cols-1; j++){
+  for (j=0; j<(*smhm_data)->cols-1; j++){
 
-    fscanf(file_pointer, "%lf", &(*smhm_data_redshift)[j]);
+    fscanf(file_pointer, "%lf", &(*smhm_data)->redshift[j]);
   }
 
   fscanf(file_pointer, "%*lf");
 
-  for (i=0; i<*smhm_data_rows-1; i++){
+  for (i=0; i<(*smhm_data)->rows-1; i++){
 
-    for (j=0; j<*smhm_data_cols-1; j++){
+    for (j=0; j<(*smhm_data)->cols-1; j++){
 
-      fscanf(file_pointer, "%lf", &(*smhm_data_matrix)[i*(*smhm_data_cols-1)+j]);
+      fscanf(file_pointer, "%lf", &(*smhm_data)->matrix[i*((*smhm_data)->cols-1)+j]);
     }
 
-    fscanf(file_pointer, "%lf", &(*smhm_data_Mstar)[i]);
+    fscanf(file_pointer, "%lf", &(*smhm_data)->Mstar[i]);
   }
 
   fclose(file_pointer);
@@ -65,13 +62,10 @@ int SMHM_read_matrix(stellar_mass_halo_mass *SMHM,
 
 
 
+
 int SMHM_numerical_interp(double DM,
                           stellar_mass_halo_mass *SMHM,
-                          int smhm_data_rows,
-                          int smhm_data_cols,
-                          double *smhm_data_matrix,
-                          double *smhm_data_redshift,
-                          double *smhm_data_Mstar,
+                          SMHM_matrix *smhm_data,
                           double redshift,
                           double *Mstar_out){
 
@@ -79,54 +73,41 @@ int SMHM_numerical_interp(double DM,
 
   double *Mhalo, *Mhalo_of_z;
 
-  dream_call(double_calloc(smhm_data_rows-1,
+  dream_call(double_calloc(smhm_data->rows-1,
                             &Mhalo),
               _alloc_error_message_);
 
-  dream_call(double_calloc(smhm_data_cols-1,
+  dream_call(double_calloc(smhm_data->cols-1,
                             &Mhalo_of_z),
               _alloc_error_message_);
 
-  for (i=0; i<smhm_data_rows-1; i++){
+  for (i=0; i<smhm_data->rows-1; i++){
 
-    if (redshift <= *(smhm_data_redshift+smhm_data_cols-2)) {
+    if (redshift <= *(smhm_data->redshift+smhm_data->cols-2)) {
     //if (redshift >= 0.) {
 
-      for (j=0; j<smhm_data_cols-1; j++){
+      for (j=0; j<smhm_data->cols-1; j++){
 
-        Mhalo_of_z[j] = smhm_data_matrix[i*(smhm_data_cols-1)+j];
+        Mhalo_of_z[j] = smhm_data->matrix[i*(smhm_data->cols-1)+j];
       }
 
-      Mhalo[i] = linear_interp(redshift, smhm_data_redshift, Mhalo_of_z, smhm_data_cols-2); //2?
+      Mhalo[i] = linear_interp(redshift, smhm_data->redshift, Mhalo_of_z, smhm_data->cols-2); //2?
       //if (redshift >= 2.6){printf("%lf %lf\n", Mhalo[i], smhm_data_Mstar[i]);}
 
     } else {
 
       //Mhalo[i] = smhm_data_matrix[i*(smhm_data_cols-1)+smhm_data_cols-2];
 
-      for (j=0; j<smhm_data_cols-1; j++){
-        Mhalo_of_z[j] = smhm_data_matrix[i*(smhm_data_cols-1)+j];
+      for (j=0; j<smhm_data->cols-1; j++){
+        Mhalo_of_z[j] = smhm_data->matrix[i*(smhm_data->cols-1)+j];
       }
-      Mhalo[i] = linear_interp(redshift, smhm_data_redshift, Mhalo_of_z, smhm_data_cols-2);
+      Mhalo[i] = linear_interp(redshift, smhm_data->redshift, Mhalo_of_z, smhm_data->cols-2);
 
     }
 
   }
 
-
-  /*if (redshift > 3.5) {
-    printf("redshift = %lf\n", redshift);
-    FILE *fp;
-    fp = fopen("smhm.txt", "w");
-    for (i=0; i<smhm_data_rows-1; i++){
-      fprintf(fp, "%lf %lf\n", Mhalo[i], smhm_data_Mstar[i]);
-    }
-    fclose(fp);
-    exit(0);
-  }*/
-
-
-  *Mstar_out = linear_interp(DM, Mhalo, smhm_data_Mstar, smhm_data_rows-1);
+  *Mstar_out = linear_interp(DM, Mhalo, smhm_data->Mstar, smhm_data->rows-1);
 
   if (SMHM->scatter > 0.) {
 
@@ -141,6 +122,70 @@ int SMHM_numerical_interp(double DM,
 
   return _success_;
 }
+
+
+int SMHM_numerical_interp_inverse(double SM,
+                                  stellar_mass_halo_mass *SMHM,
+                                  SMHM_matrix *smhm_data,
+                                  double redshift,
+                                  double *Mhalo_out){
+
+  int i, j;
+
+  double *Mhalo, *Mhalo_of_z;
+
+  dream_call(double_calloc(smhm_data->rows-1,
+                            &Mhalo),
+              _alloc_error_message_);
+
+  dream_call(double_calloc(smhm_data->cols-1,
+                            &Mhalo_of_z),
+              _alloc_error_message_);
+
+  for (i=0; i<smhm_data->rows-1; i++){
+
+    if (redshift <= *(smhm_data->redshift+smhm_data->cols-2)) {
+    //if (redshift >= 0.) {
+
+      for (j=0; j<smhm_data->cols-1; j++){
+
+        Mhalo_of_z[j] = smhm_data->matrix[i*(smhm_data->cols-1)+j];
+      }
+
+      Mhalo[i] = linear_interp(redshift, smhm_data->redshift, Mhalo_of_z, smhm_data->cols-2); //2?
+      //if (redshift >= 2.6){printf("%lf %lf\n", Mhalo[i], smhm_data_Mstar[i]);}
+
+    } else {
+
+      //Mhalo[i] = smhm_data_matrix[i*(smhm_data_cols-1)+smhm_data_cols-2];
+
+      for (j=0; j<smhm_data->cols-1; j++){
+        Mhalo_of_z[j] = smhm_data->matrix[i*(smhm_data->cols-1)+j];
+      }
+      Mhalo[i] = linear_interp(redshift, smhm_data->redshift, Mhalo_of_z, smhm_data->cols-2);
+
+    }
+
+  }
+
+  *Mhalo_out = linear_interp(SM, smhm_data->Mstar, Mhalo, smhm_data->rows-1);
+
+  if (SMHM->scatter > 0.) {
+
+    *Mhalo_out += get_random_gaussian(0., SMHM->scatter, -2., 2.);
+  }
+
+  dream_call(dealloc(Mhalo),
+              _dealloc_error_message_);
+
+  dream_call(dealloc(Mhalo_of_z),
+              _dealloc_error_message_);
+
+  return _success_;
+}
+
+
+
 
 
 
@@ -204,67 +249,29 @@ int SMHM_Grylls_param(double DM,
 
 
 
+
 int Mhalo_track_to_Mstar_track(double *Mhalo_track,
                                stellar_mass_halo_mass *SMHM,
-                               int smhm_data_rows,
-                               int smhm_data_cols,
-                               double *smhm_data_matrix,
-                               double *smhm_data_redshift,
-                               double *smhm_data_Mstar,
+                               SMHM_matrix *smhm_data,
                                double *z,
                                int len,
                                double **Mstar_track) {
 
   int i;
 
-  double SMHM_params[8];
+  for (i=0; i<len; i++){
 
-  if (SMHM->is_analytical == _True_){
-
-    dream_call(get_SMHM_params(SMHM->model,
-                                &SMHM_params[0]),
-                _get_SMHM_params_error_message_);
-
-    for (i=0; i<len; i++) {
-
-      dream_call(SMHM_Grylls_param(*(Mhalo_track+i),
-                                    SMHM_params,
-                                    SMHM->scatter,
-                                    *(z+i),
-                                    &(*(*Mstar_track+i))),
-                  _SMHM_error_message_);
-    }
-
-  } else if (SMHM->is_analytical == _False_){
-
-    for (i=0; i<len; i++){
-
-      dream_call(SMHM_numerical_interp(*(Mhalo_track+i),
-                                        SMHM, smhm_data_rows, smhm_data_cols, smhm_data_matrix, smhm_data_redshift, smhm_data_Mstar,
-                                        *(z+i), &(*(*Mstar_track+i))),
-                  _SMHM_error_message_);
-
-                  //printf("%d/%d, %lf %lf %lf\n", i+1, len, z[i], *(Mhalo_track+i), *(*Mstar_track+i));
-
-    }
+    dream_call(SMHM_numerical_interp(*(Mhalo_track+i),
+                                      SMHM, smhm_data,
+                                      *(z+i), &(*(*Mstar_track+i))),
+                _SMHM_error_message_);
 
   }
 
-  /*if ((*Mstar_track[0]>10.99) && (*Mstar_track[0]<11.1) ){
-    printf("printing\n");
-    FILE *fp;
-    fp = fopen("van_den_Bosch_tracks/track_12.txt", "w");
-    for (i=0; i<len; i++){
-      fprintf(fp, "%lf %lf %lf\n", z[i], Mhalo_track[i], (*Mstar_track)[i]);
-    }
-    fclose(fp);
-    exit(0);
-  }*/
 
   return _success_;
 
 }
-
 
 
 

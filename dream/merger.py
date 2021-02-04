@@ -25,6 +25,8 @@ class mergers_parameters(Structure):
         subhalo_mass_range = np.arange(sub_mass_params[0], sub_mass_params[1] + \
                                 sub_mass_params[2], sub_mass_params[2]) #[log(M/Msun)]
 
+        #print(subhalo_mass_range)
+
         self.id = id
         self.halo_mass_at_z0 = halo_mass_at_z0
         self.halo_mass_at_z = halo_mass_at_z

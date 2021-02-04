@@ -28,15 +28,12 @@ void get_central_galaxies(char *logfile_name,
   int i, j;
   double *centrals;
   double *id_centrals;
-  double SMHM_params[8];
   FILE *file_pointer;
 
-  int smhm_data_rows, smhm_data_cols;
-  double *smhm_data_matrix, *smhm_data_redshift, *smhm_data_Mstar;
+  SMHM_matrix *smhm_data;
+  smhm_data = (SMHM_matrix *)malloc(sizeof(SMHM_matrix));
 
-  if (SMHM->is_analytical == _False_){
-    dream_call(SMHM_read_matrix(SMHM, &smhm_data_rows, &smhm_data_cols, &smhm_data_matrix, &smhm_data_redshift, &smhm_data_Mstar), _SMHM_read_matrix_error_message_);
-  }
+  dream_call(SMHM_read_matrix(SMHM, &smhm_data), _SMHM_read_matrix_error_message_);
 
   char filename[25] = "data/output_centrals.txt";
   const size_t len1 = strlen(output_folder);
@@ -57,51 +54,35 @@ void get_central_galaxies(char *logfile_name,
 
   file_pointer = fopen(output_filename, "a");
 
+  for (i=0; i<len_centrals; i++){
 
-  if (SMHM->is_analytical == _True_){
+    dream_call(SMHM_numerical_interp(*(centrals+i), SMHM, smhm_data, 0.1, &(*(centrals+i))),
+               _SMHM_error_message_);
 
-    dream_call(get_SMHM_params(SMHM->model,
-                                &SMHM_params[0]),
-                _get_SMHM_params_error_message_);
-
-    for (i=0; i<len_centrals; i++){
-
-      dream_call(SMHM_Grylls_param(*(centrals+i),
-                                    SMHM_params,
-                                    SMHM->scatter, 0.1,
-                                    &(*(centrals+i))),
-                  _SMHM_error_message_);
-
-      fprintf(file_pointer, "%d %lf\n", (int)(*(id_centrals+i)), *(centrals+i));
-    }
-
-  } else if (SMHM->is_analytical == _False_){
-
-    for (i=0; i<len_centrals; i++){
-      dream_call(SMHM_numerical_interp(*(centrals+i), SMHM, smhm_data_rows, smhm_data_cols, smhm_data_matrix, smhm_data_redshift, smhm_data_Mstar, 0.1, &(*(centrals+i))),
-                  _SMHM_error_message_);
-
-      fprintf(file_pointer, "%d %lf\n", (int)(*(id_centrals+i)), *(centrals+i));
-
-    }
+    fprintf(file_pointer, "%d %lf\n", (int)(*(id_centrals+i)), *(centrals+i));
 
   }
+
 
   fclose(file_pointer);
 
   dream_call(dealloc(centrals),
-              _dealloc_error_message_);
+             _dealloc_error_message_);
 
   dream_call(dealloc(id_centrals),
-              _dealloc_error_message_);
+             _dealloc_error_message_);
 
   dream_call(dealloc(output_filename),
-              _dealloc_error_message_);
+             _dealloc_error_message_);
 
-  if (SMHM->is_analytical == _False_){
-    dream_call(dealloc_SMHM_matrix(&smhm_data_matrix, &smhm_data_redshift, &smhm_data_Mstar),
-                _dealloc_error_message_);
-  }
+  dream_call(dealloc(smhm_data->redshift),
+             _dealloc_error_message_);
+  dream_call(dealloc(smhm_data->matrix),
+             _dealloc_error_message_);
+  dream_call(dealloc(smhm_data->Mstar),
+             _dealloc_error_message_);
+  dream_call(dealloc(smhm_data),
+             _dealloc_error_message_);
 
   return;
 }

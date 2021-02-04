@@ -5,6 +5,7 @@ Authors:
 Hao Fu <h.fu@soton.ac.uk>
 Chris Marsden <c.marsden@soton.ac.uk>
 Francesco Shankar <f.shankar@soton.ac.uk>
+Max Dickson <md2g17@soton.ac.uk>
 """
 
 

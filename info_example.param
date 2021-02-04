@@ -40,7 +40,7 @@ exist_z_at_merge = no
 # 2) State if you want to get the first accretion redshift distribution.
 #    Options: 'yes' and 'no'.
 #    Default: 'yes'
-#want_z_infall_pdf = yes
+want_z_infall_pdf = yes
 
 # 3) State if you want to get the (un)evolved
 #    subhalo mass functions and the mergers rate.
@@ -49,9 +49,9 @@ exist_z_at_merge = no
 #        - want_unevolved_shmf = no
 #        - want_evolved_shmf = no
 #        - want_mergers_rate = no
-#want_unevolved_shmf = yes
+want_unevolved_shmf = yes
 #want_evolved_shmf = yes
-want_mergers_rate = yes
+#want_mergers_rate = yes
 
 # 4) Halo mass range.
 #    If one of the options in section 3) is 'yes',
@@ -59,9 +59,9 @@ want_mergers_rate = yes
 #    Insert the list of the halo mass bin within which you wish
 #    to calculate the mass functions.
 #halo_masses = [13., 13.5, 14.]
-halo_masses = [11.]
-#halo_masses = [13., 14.]
-halo_mass_bin = 0.2
+#halo_masses = [11.]
+halo_masses = [13., 14.]
+halo_mass_bin = 0.1
 
 
 
@@ -69,13 +69,15 @@ halo_mass_bin = 0.2
 # ----> Stellar mass parameters:
 # ------------------------------
 
-# 1) Insert the parametrization for the SMHM relation or filename.
+# 1) Insert the SMHM filename.
 #    This will be used to assign the stellar mass to the (sub)haloes.
-#    If both are given, the code will adopt the SMHM from file.
-#    Default: Data/SMHM_relations/SMHM_constant_sigma.txt
+#    Must be specified.
+#    Default: None
 #SMHM_file = Data/SMHM_relations/SMHM_constant_sigma.txt
 #SMHM_file = Data/SMHM_relations/SMHM_null_sigma.txt
-SMHM_model = Grylls_2019
+#SMHM_file = Data/SMHM_relations/SMHM_null_sigma_extrapolated.txt
+SMHM_file = Data/SMHM_relations/SMHM_Tomczak_extrapolated.txt
+#SMHM_file = Data/SMHM_relations/SMHM_Tomczak_variable_sigma_extrapolated.txt
 
 # 2) Insert the value of the scatter in the SMHM.
 #    Default: 0
@@ -100,10 +102,10 @@ scatter = 0.
 #        list the log10(Mstar) for which you want to calculate the SFR and SFH
 #        this should be given as a python list format
 #        Default: [11]
-compute_SF = yes
+compute_SF = no
 redshifts_for_SFR = [0.1, 1, 2]
 #redshifts_for_SFR = [0., 0.2, 0.4, 0.6, 0.8, 1., 1.2, 1.4, 1.6, 1.8, 2., 2.2, 2.4, 2.6, 2.8, 3., 3.2, 3.4, 3.6, 3.8, 4., 4.2, 4.4, 4.6, 4.8, 5., 5.2, 5.4, 5.6, 5.8, 6.]
 #stellar_masses_for_SF = [8., 10.5, 11, 11.5, 12.]
-stellar_masses_for_SF = [12.]
+stellar_masses_for_SF = [11., 11.5, 12.]
 
 

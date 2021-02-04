@@ -33,7 +33,7 @@ class input_parameters_run:
     @ want_z_at_merge -> state if save redshift at merging (string)
     """
 
-    def __init__(self, halo_mass_function, cube_side, z_range, host_mass_params, mass_definition, use_mean_track, sub_mass_params, output_folder, max_order, use_merger_tree, merging_timescale_params, want_z_at_merge, want_galaxies, exist_DM, ignore_high_orders, SMHM, include_quenching, include_stripping, satellites_redshift):
+    def __init__(self, halo_mass_function, cube_side, z_range, host_mass_params, mass_definition, use_mean_track, sub_mass_res, output_folder, max_order, use_merger_tree, merging_timescale_params, want_z_at_merge, want_galaxies, exist_DM, ignore_high_orders, SMHM, include_quenching, include_stripping, satellites_redshift):
 
         self.halo_mass_function = halo_mass_function
         self.cube_side = cube_side
@@ -41,7 +41,7 @@ class input_parameters_run:
         self.host_mass_params = host_mass_params
         self.mass_definition = mass_definition
         self.use_mean_track = use_mean_track
-        self.sub_mass_params = sub_mass_params
+        self.sub_mass_res = sub_mass_res
         self.output_folder = output_folder
         self.max_order = max_order
         self.use_merger_tree = use_merger_tree
@@ -209,9 +209,7 @@ def read_parameters_run(argv):
                     elif "M0_host_bin" in line: M0_host_bin = float(line[2])
                     elif "mass_definition" in line: mass_definition = line[2]
                     elif "use_mean_track" in line: use_mean_track = line[2]
-                    elif "M_sub_min" in line: M_sub_min = float(line[2])
-                    elif "M_sub_max" in line: M_sub_max = float(line[2])
-                    elif "M_sub_bin" in line: M_sub_bin = float(line[2])
+                    elif "M_sub_res" in line: M_sub_res = float(line[2])
                     elif "max_order" in line: max_order = int(line[2])
                     elif "use_merger_tree" in line: use_merger_tree = line[2]
                     elif "type_orbital_circularity" in line: type_orbital_circularity = line[2]
@@ -253,15 +251,20 @@ def read_parameters_run(argv):
 
     try:
         host_mass_params = (M0_host_min, M0_host_max, M0_host_bin)
-        sub_mass_params = (M_sub_min, M_sub_max, M_sub_bin)
     except:
         ErrMessage = "  /!\    Error in the input parameter file:\n / ! \   mass parameters missing\n"
         sys.exit(ErrMessage)
 
     try:
+        M_sub_res
+    except:
+        M_sub_res = 1.e-3
+        print("  /!\    Subhalo mass resolution not given.\n / ! \   Set to default = 1e-3.\n")
+
+    try:
         mass_definition
     except:
-        mass_definition = "200m"
+        mass_definition = "vir"
 
     try:
         if use_mean_track == "yes":
@@ -336,24 +339,16 @@ def read_parameters_run(argv):
 
     try:
         SMHM_file
-        SMHM_is_analytical = False
-        SMHM_model = ""
     except:
-        try:
-            SMHM_model
-            SMHM_is_analytical = True
-            SMHM_file = ""
-        except:
-            SMHM_file = "Data/SMHM_relations/SMHM_constant_sigma.txt"
-            SMHM_is_analytical = False
-            SMHM_model = ""
+        ErrMessage = "  /!\    Error in the input parameter file:\n / ! \   SMHM file name missing\n"
+        sys.exit(ErrMessage)
 
     try:
         scatter
         constant_scatter = True
     except:
-        ErrMessage = "  /!\    Error in the input parameter file:\n / ! \   scatter missing\n"
-        sys.exit(ErrMessage)
+        scatter = 0.
+        constant_scatter = True
 
     try:
         if include_quenching == "yes":
@@ -377,9 +372,9 @@ def read_parameters_run(argv):
         ErrMessage = "  /!\    Error in the input parameter file:\n / ! \   satellites redshift missing\n"
         sys.exit(ErrMessage)
 
-    SMHM = get_SMHM_numerical(SMHM_is_analytical, SMHM_file, SMHM_model, constant_scatter, scatter, z = satellites_redshift)
+    SMHM = get_SMHM_numerical(SMHM_file, constant_scatter, scatter, z = satellites_redshift)
 
-    input_params_run = input_parameters_run(halo_mass_function, cube_side, z_range, host_mass_params, mass_definition, use_mean_track, sub_mass_params, output_folder, max_order, use_merger_tree, merging_timescale_params, want_z_at_merge, want_galaxies, exist_DM, ignore_high_orders, SMHM, include_quenching, include_stripping, satellites_redshift)
+    input_params_run = input_parameters_run(halo_mass_function, cube_side, z_range, host_mass_params, mass_definition, use_mean_track, M_sub_res, output_folder, max_order, use_merger_tree, merging_timescale_params, want_z_at_merge, want_galaxies, exist_DM, ignore_high_orders, SMHM, include_quenching, include_stripping, satellites_redshift)
 
     return input_params_run
 
@@ -483,17 +478,9 @@ def read_parameters_info(argv):
 
     try:
         SMHM_file
-        SMHM_is_analytical = False
-        SMHM_model = ""
     except:
-        try:
-            SMHM_model
-            SMHM_is_analytical = True
-            SMHM_file = ""
-        except:
-            SMHM_file = "Data/SMHM_relations/SMHM_constant_sigma.txt"
-            SMHM_is_analytical = False
-            SMHM_model = ""
+        ErrMessage = "  /!\    Error in the input parameter file:\n / ! \   SMHM file name missing\n"
+        sys.exit(ErrMessage)
 
     try:
         scatter
@@ -524,7 +511,7 @@ def read_parameters_info(argv):
         folder_name += "/"
     print("Analysing data from folder: {}".format(folder_name+"data/"))
 
-    SMHM = get_SMHM_numerical(SMHM_is_analytical, SMHM_file, SMHM_model, constant_scatter, scatter, z = 0.1) # TO DO: EXTRAPOLATE OUT TO EVERY z
+    SMHM = get_SMHM_numerical(SMHM_file, constant_scatter, scatter, z = 0.1) # TO DO: EXTRAPOLATE OUT TO EVERY z
 
     input_params_info = input_parameters_info(folder_name, exist_z_at_merge, want_z_infall_pdf, want_unevolved_shmf, want_evolved_shmf, want_mergers_rate, halo_masses, halo_mass_bin, SMHM, compute_SF, redshifts_for_SFR, stellar_masses_for_SF)
 

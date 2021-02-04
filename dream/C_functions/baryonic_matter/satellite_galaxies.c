@@ -44,7 +44,6 @@ void get_satellite_galaxies_at_z(char *logfile_name,
   double *redshift_infall;
   double *merging_timescale;
   double *z_at_merge;
-  //double SMHM_params[8];
   double age_today, age_at_merge;
   double satellite_mass;
 
@@ -52,12 +51,10 @@ void get_satellite_galaxies_at_z(char *logfile_name,
   double *shmf_1st_order, *mass_range, *cumulative_mass_function;
   double resolution; int len;
 
-  int smhm_data_rows, smhm_data_cols;
-  double *smhm_data_matrix, *smhm_data_redshift, *smhm_data_Mstar;
+  SMHM_matrix *smhm_data;
+  smhm_data = (SMHM_matrix *)malloc(sizeof(SMHM_matrix));
 
-  if (SMHM->is_analytical == _False_){
-    dream_call(SMHM_read_matrix(SMHM, &smhm_data_rows, &smhm_data_cols, &smhm_data_matrix, &smhm_data_redshift, &smhm_data_Mstar), _SMHM_read_matrix_error_message_);
-  }
+  dream_call(SMHM_read_matrix(SMHM, &smhm_data), _SMHM_read_matrix_error_message_);
 
   FILE *file_pointer;
 
@@ -108,22 +105,13 @@ void get_satellite_galaxies_at_z(char *logfile_name,
               _alloc_error_message_);
 
   dream_call(compute_redshift_at_merging(redshift_infall,
-                                          merging_timescale,
-                                          len_mergers,
-                                          cosmo_time,
-                                          &z_at_merge),
-              _redshift_merging_error_message_);
+                                         merging_timescale,
+                                         len_mergers,
+                                         cosmo_time,
+                                         &z_at_merge),
+             _redshift_merging_error_message_);
 
   file_pointer = fopen(output_filename, "a");
-
-  /*if (SMHM->is_analytical == _True_){
-
-    dream_call(get_SMHM_params(SMHM_model,
-                                &SMHM_params[0]),
-                _get_SMHM_params_error_message_);
-
-  }*/
-
 
   if (ignore_high_orders == _False_){
 
@@ -132,16 +120,16 @@ void get_satellite_galaxies_at_z(char *logfile_name,
     age_today = linear_interp(0., cosmo_time->redshift, cosmo_time->age, cosmo_time->length);
 
     dream_call(double_malloc(len,
-                              &shmf_1st_order),
-                _alloc_error_message_);
+                             &shmf_1st_order),
+               _alloc_error_message_);
 
     dream_call(double_malloc(len,
-                              &mass_range),
-                _alloc_error_message_);
+                             &mass_range),
+               _alloc_error_message_);
 
     dream_call(double_malloc(len,
-                              &cumulative_mass_function),
-                _alloc_error_message_);
+                             &cumulative_mass_function),
+               _alloc_error_message_);
 
   }
 
@@ -152,22 +140,22 @@ void get_satellite_galaxies_at_z(char *logfile_name,
     if (ignore_high_orders == _False_){
 
       dream_call(linear_space(resolution*mass_parents[i],
-                               mass_parents[i],
-                               len,
-                               &mass_range),
-                  _linear_space_error_message);
+                              mass_parents[i],
+                              len,
+                              &mass_range),
+                 _linear_space_error_message);
 
       dream_call(vdB_USHMF_1st_order(params_jiang_vdb_1st_order,
-                                      mass_parents[i],
-                                      mass_range,
-                                      len,
-                                      &shmf_1st_order),
-                  _mass_function_error_message_);
+                                     mass_parents[i],
+                                     mass_range,
+                                     len,
+                                     &shmf_1st_order),
+                 _mass_function_error_message_);
 
       dream_call(cumsum(shmf_1st_order,
-                         len,
-                         &cumulative_mass_function),
-                  _cumsum_error_message_);
+                        len,
+                        &cumulative_mass_function),
+                 _cumsum_error_message_);
 
     }
 
@@ -184,16 +172,16 @@ void get_satellite_galaxies_at_z(char *logfile_name,
 
           if (z_at_merge[j] < satellites_redshift){
 
-            dream_call(get_evolved_satellite_mass(SMHM, smhm_data_rows, smhm_data_cols, smhm_data_matrix, smhm_data_redshift, smhm_data_Mstar,
-                                                   *(mass_parents+i),
-                                                   *(satellites+j),
-                                                   satellites_redshift,
-                                                   *(redshift_infall+j),
-                                                   include_stripping,
-                                                   include_quenching,
-                                                   cosmo_time,
-                                                   &satellite_mass),
-                        _mstar_at_z_error_message_);
+            dream_call(get_evolved_satellite_mass(SMHM, smhm_data,
+                                                  *(mass_parents+i),
+                                                  *(satellites+j),
+                                                  satellites_redshift,
+                                                  *(redshift_infall+j),
+                                                  include_stripping,
+                                                  include_quenching,
+                                                  cosmo_time,
+                                                  &satellite_mass),
+                       _mstar_at_z_error_message_);
 
             fprintf(file_pointer, "%d %d %lf\n", (int)(*(id_satellites+j)), (int)(*(order+j)), satellite_mass);
 
@@ -202,46 +190,46 @@ void get_satellite_galaxies_at_z(char *logfile_name,
         } else if ((*(order+j) == 2) && (ignore_high_orders == _False_)) {
 
           dream_call(generate_halo_from_mass_function(cumulative_mass_function,
-                                                       mass_range,
-                                                       len,
-                                                       &random_mass_1st),
-                      _mass_from_pdf_error_message_);
+                                                      mass_range,
+                                                      len,
+                                                      &random_mass_1st),
+                     _mass_from_pdf_error_message_);
 
           dream_call(get_infall_redshift_from_pdf(random_mass_1st,
-                                                   1, 0.,
-                                                   *(redshift_infall+j),
-                                                   &z_inf_1st),
-                      _infall_redshift_from_pdf_error_message_);
+                                                  1, 0.,
+                                                  *(redshift_infall+j),
+                                                  &z_inf_1st),
+                     _infall_redshift_from_pdf_error_message_);
 
           if (*(z_at_merge+j) < z_inf_1st){
 
             dream_call(compute_merging_timescale(random_mass_1st,
-                                                  get_mass_at_t(satellites[j],
-                                                                random_mass_1st,
-                                                                z_inf_1st,
-                                                                redshift_infall[j],
-                                                                cosmo_time,
-                                                                cosmo_params),
-                                                  z_inf_1st,
-                                                  mergers_params,
-                                                  cosmo_params,
-                                                  &new_tau_merge_2nd),
-                        _merging_timescale_error_message_);
+                                                 get_mass_at_t(satellites[j],
+                                                               random_mass_1st,
+                                                               z_inf_1st,
+                                                               redshift_infall[j],
+                                                               cosmo_time,
+                                                               cosmo_params),
+                                                 z_inf_1st,
+                                                 mergers_params,
+                                                 cosmo_params,
+                                                 &new_tau_merge_2nd),
+                       _merging_timescale_error_message_);
 
             new_age_at_merge_2nd =  linear_interp(z_inf_1st, cosmo_time->redshift, cosmo_time->age, cosmo_time->length) + new_tau_merge_2nd;
 
             if (new_tau_merge_2nd > age_today) {
 
-              dream_call(get_evolved_satellite_mass(SMHM, smhm_data_rows, smhm_data_cols, smhm_data_matrix, smhm_data_redshift, smhm_data_Mstar,
-                                                     *(mass_parents+i),
-                                                     *(satellites+j),
-                                                     satellites_redshift,
-                                                     *(redshift_infall+j),
-                                                     include_stripping,
-                                                     include_quenching,
-                                                     cosmo_time,
-                                                     &satellite_mass),
-                          _mstar_at_z_error_message_);
+              dream_call(get_evolved_satellite_mass(SMHM, smhm_data,
+                                                    *(mass_parents+i),
+                                                    *(satellites+j),
+                                                    satellites_redshift,
+                                                    *(redshift_infall+j),
+                                                    include_stripping,
+                                                    include_quenching,
+                                                    cosmo_time,
+                                                    &satellite_mass),
+                         _mstar_at_z_error_message_);
 
               fprintf(file_pointer, "%d %d %lf\n", (int)(*(id_satellites+j)), (int)(*(order+j)), satellite_mass);
 
@@ -258,33 +246,37 @@ void get_satellite_galaxies_at_z(char *logfile_name,
   fclose(file_pointer);
 
   dream_call(dealloc(output_filename),
-              _dealloc_error_message_);
+             _dealloc_error_message_);
 
   dream_call(dealloc(id_parents),
-              _dealloc_error_message_);
+             _dealloc_error_message_);
 
   dream_call(dealloc(mass_parents),
-              _dealloc_error_message_);
+             _dealloc_error_message_);
 
   dream_call(dealloc(id_satellites),
-              _dealloc_error_message_);
+             _dealloc_error_message_);
 
   dream_call(dealloc(order),
-              _dealloc_error_message_);
+             _dealloc_error_message_);
 
   dream_call(dealloc(satellites),
-              _dealloc_error_message_);
+             _dealloc_error_message_);
 
   dream_call(dealloc(redshift_infall),
-              _dealloc_error_message_);
+             _dealloc_error_message_);
 
   dream_call(dealloc(merging_timescale),
-              _dealloc_error_message_);
+             _dealloc_error_message_);
 
-  if (SMHM->is_analytical == _False_){
-    dream_call(dealloc_SMHM_matrix(&smhm_data_matrix, &smhm_data_redshift, &smhm_data_Mstar),
-                _dealloc_error_message_);
-  }
+  dream_call(dealloc(smhm_data->redshift),
+             _dealloc_error_message_);
+  dream_call(dealloc(smhm_data->matrix),
+             _dealloc_error_message_);
+  dream_call(dealloc(smhm_data->Mstar),
+             _dealloc_error_message_);
+  dream_call(dealloc(smhm_data),
+             _dealloc_error_message_);
 
   return;
 }

@@ -7,9 +7,7 @@ from numpy.ctypeslib import ndpointer
 
 class stellar_mass_halo_mass(Structure):
 
-    _fields_ = [("is_analytical", c_int),
-                ("model", c_char_p),
-                ("file", c_char_p),
+    _fields_ =  [("file", c_char_p),
                 ("Mhalo", POINTER(c_double)),
                 ("Mstar", POINTER(c_double)),
                 #("Mhalo", np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags="C")),
@@ -18,11 +16,8 @@ class stellar_mass_halo_mass(Structure):
                 ("constant_scatter", c_int),
                 ("scatter", c_double)]
 
-    def __init__(self, is_analytical, model, file, Mhalo, Mstar, length, constant_scatter, scatter):
-
-        #print(Mhalo); print(Mstar); print(Mstar.size)
-        self.is_analytical = is_analytical
-        self.model = model.encode('utf-8')
+    def __init__(self, file, Mhalo, Mstar, length, constant_scatter, scatter):
+        
         self.file = file.encode('utf-8')
         Mhalo = Mhalo.astype(np.float64); Mstar = Mstar.astype(np.float64)
         self.Mhalo = Mhalo.ctypes.data_as(POINTER(c_double))
@@ -89,31 +84,26 @@ def SMHM_for_z(z, matrix):
 
 
 
-def get_SMHM_numerical(SMHM_is_analytical, SMHM_file, SMHM_model, constant_scatter, scatter, z):
+def get_SMHM_numerical(SMHM_file, constant_scatter, scatter, z):
 
     if constant_scatter:
         constant_scatter = 1
     elif not constant_scatter:
         constant_scatter = 0
 
-    if SMHM_is_analytical:
-        is_analytical = 1
-        Mhalo = np.array([], dtype=float)
-        Mstar = np.array([], dtype=float)
-    elif not SMHM_is_analytical:
-        is_analytical = 0
-        SMHM_matrix = np.loadtxt(SMHM_file, skiprows=2)
-        Mstar = np.loadtxt(SMHM_file, usecols=-1, skiprows=2) #SMHM_matrix[:,-1]
-        #Mhalo = SMHM_for_z(z, SMHM_matrix)
-        z_range = np.arange(0., 1.6, 0.1)
-        mhalo = []
-        for i in range(SMHM_matrix[:,0].size):
-            mhalo.append(interp1d(z_range, SMHM_matrix[i,:-1])(z))
-        Mhalo = np.array(mhalo.copy())
+    SMHM_matrix = np.loadtxt(SMHM_file, skiprows=2)
+    Mstar = np.loadtxt(SMHM_file, usecols=-1, skiprows=2) #SMHM_matrix[:,-1]
+    #Mhalo = SMHM_for_z(z, SMHM_matrix)
+    #z_range = np.arange(0., 1.6, 0.1)
+    z_range = np.loadtxt(SMHM_file, skiprows=1, max_rows=1)[:-1]
+    mhalo = []
+    for i in range(SMHM_matrix[:,0].size):
+        mhalo.append(interp1d(z_range, SMHM_matrix[i,:-1])(z))
+    Mhalo = np.array(mhalo.copy())
 
     #print(Mhalo); print(Mstar)
 
-    SMHM = [is_analytical, SMHM_model, SMHM_file, Mhalo, Mstar, Mhalo.size, constant_scatter, scatter]
+    SMHM = [SMHM_file, Mhalo, Mstar, Mhalo.size, constant_scatter, scatter]
     SMHM = stellar_mass_halo_mass(*SMHM)
 
     return SMHM

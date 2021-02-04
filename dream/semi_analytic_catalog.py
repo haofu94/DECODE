@@ -49,4 +49,12 @@ def generate_parents_catalogue(input_params_run, h):
 
     mass_catalog = np.log10(mass_catalog) #log[M/Msun]
 
+    # MAGHEGGIO
+    #mass_catalog = np.random.uniform(11.5, 16., 1500)
+    """mass_catalog = np.random.uniform(11.5, 12., 500)
+    mass_catalog = np.concatenate((mass_catalog, np.random.uniform(12., 13., 500)))
+    mass_catalog = np.concatenate((mass_catalog, np.random.uniform(13., 14., 500)))
+    mass_catalog = np.concatenate((mass_catalog, np.random.uniform(14., 15., 500)))
+    mass_catalog = np.concatenate((mass_catalog, np.random.uniform(15., 16., 300)))"""
+
     return mass_catalog

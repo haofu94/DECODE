@@ -107,13 +107,9 @@ int get_star_formation_rate_satellites(double Mstar, double z, double *SFR) {
   * @ cosmo_time -> cosmological time
   * @ mass_at_z -> pointer to the mass_at_z variable
 **/
+
 int get_evolved_satellite_mass(stellar_mass_halo_mass *SMHM,
-                               //double *SMHM_params,
-                               int smhm_data_rows,
-                               int smhm_data_cols,
-                               double *smhm_data_matrix,
-                               double *smhm_data_redshift,
-                               double *smhm_data_Mstar,
+                               SMHM_matrix *smhm_data,
                                double progenitor_mass,
                                double subhalo_mass,
                                double z,
@@ -125,22 +121,12 @@ int get_evolved_satellite_mass(stellar_mass_halo_mass *SMHM,
 
   int i, j, idx;
 
-  double SMHM_params[8];
-
-  if (SMHM->is_analytical == _True_){
-
-    dream_call(get_SMHM_params(SMHM->model,
-                                &SMHM_params[0]),
-                _get_SMHM_params_error_message_);
-
-  }
-
   double tau_strip;
 
   dream_call(compute_stripping_timescale(progenitor_mass,
-                                          subhalo_mass,
-                                          &tau_strip),
-              _stripping_timescale_error_message_);
+                                         subhalo_mass,
+                                         &tau_strip),
+             _stripping_timescale_error_message_);
 
   double eta_strip = 0.4;
 
@@ -157,34 +143,34 @@ int get_evolved_satellite_mass(stellar_mass_halo_mass *SMHM,
   double *z_range, *lookback_time, *Mstar, *SFR, *SFH, *MLR;
 
   dream_call(double_malloc(len,
-                            &z_range),
-              _alloc_error_message_);
+                           &z_range),
+             _alloc_error_message_);
 
   dream_call(double_malloc(len,
-                            &lookback_time),
-              _alloc_error_message_);
+                           &lookback_time),
+             _alloc_error_message_);
 
   dream_call(double_calloc(len,
-                            &Mstar),
-              _alloc_error_message_);
+                           &Mstar),
+             _alloc_error_message_);
 
   dream_call(double_calloc(len,
-                            &SFR),
-              _alloc_error_message_);
+                           &SFR),
+             _alloc_error_message_);
 
   dream_call(double_calloc(len,
-                            &SFH),
-              _alloc_error_message_);
+                           &SFH),
+             _alloc_error_message_);
 
   dream_call(double_calloc(len,
-                            &MLR),
-              _alloc_error_message_);
+                           &MLR),
+             _alloc_error_message_);
 
   dream_call(linear_space(z,
-                           z_infall,
-                           len,
-                           &z_range),
-              _linear_space_error_message);
+                          z_infall,
+                          len,
+                          &z_range),
+             _linear_space_error_message);
 
   for (i=0; i<len; i++){
 
@@ -194,25 +180,13 @@ int get_evolved_satellite_mass(stellar_mass_halo_mass *SMHM,
     *(lookback_time+i) *= 1.e9; //[yr]
   }
 
-  if (SMHM->is_analytical == _True_){
-
-    dream_call(SMHM_Grylls_param(subhalo_mass,
-                                  SMHM_params,
-                                  0., z_infall,
-                                  &(*(Mstar+len-1))),
-                _SMHM_error_message_); //[log(M/Msun)]
-
-  } else if (SMHM->is_analytical == _False_){
-
-    dream_call(SMHM_numerical_interp(subhalo_mass, SMHM, smhm_data_rows, smhm_data_cols, smhm_data_matrix, smhm_data_redshift, smhm_data_Mstar, z_infall, &(*(Mstar+len-1))),
-                _SMHM_error_message_);
-
-  }
+  dream_call(SMHM_numerical_interp(subhalo_mass, SMHM, smhm_data, z_infall, &(*(Mstar+len-1))),
+             _SMHM_error_message_);
 
   for (i=len-2; i>=0; i--){
 
     dream_call(get_star_formation_rate_satellites(*(Mstar+i+1), *(z_range+i+1), &(*(SFR+i))),
-                _compute_SFR_error_message_);
+               _compute_SFR_error_message_);
 
     //GAS LOSS
     for (j=len-2; j>=i; j--){
@@ -228,8 +202,8 @@ int get_evolved_satellite_mass(stellar_mass_halo_mass *SMHM,
       if (*(Mstar+i+1) < 9.) {
 
         dream_call(compute_quenching_timescale(*(Mstar+i),
-                                                &tau_f),
-                    _quenching_timescale_error_message_);
+                                               &tau_f),
+                   _quenching_timescale_error_message_);
 
         tau_f *= 1.e9;
 
@@ -252,28 +226,27 @@ int get_evolved_satellite_mass(stellar_mass_halo_mass *SMHM,
   }
 
   dream_call(dealloc(z_range),
-              _dealloc_error_message_);
+             _dealloc_error_message_);
 
   dream_call(dealloc(Mstar),
-              _dealloc_error_message_);
+             _dealloc_error_message_);
 
   dream_call(dealloc(SFR),
-              _dealloc_error_message_);
+             _dealloc_error_message_);
 
   dream_call(dealloc(SFH),
-              _dealloc_error_message_);
+             _dealloc_error_message_);
 
   dream_call(dealloc(MLR),
-              _dealloc_error_message_);
+             _dealloc_error_message_);
 
   dream_call(dealloc(lookback_time),
-              _dealloc_error_message_);
+             _dealloc_error_message_);
 
   *mass_at_z = *Mstar;
 
   return _success_;
 }
-
 
 
 

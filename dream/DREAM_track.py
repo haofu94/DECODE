@@ -25,7 +25,8 @@ except:
 
 
 import halo_growth
-import analytic_SHMFs
+#import analytic_SHMFs
+from analytic_SHMFs import *
 import other_functions as others
 
 from cosmological_model import *
@@ -55,9 +56,13 @@ mergers.generate_mergers.argtypes = [POINTER(mergers_parameters),
                                      POINTER(subhalo_mass_functions)]
 
 
+Mhalo_MIN = 8.
+Mhalo_MAX = 18.
+subhalo_mass_bin = 0.1
 
 def DREAM_track(halo_catalog,
-                 input_params_run):
+                input_params_run):
+
     """
     DREAM Tracks
 
@@ -83,8 +88,7 @@ def DREAM_track(halo_catalog,
 
     if input_params_run.use_mean_track:
 
-        min_mass = 9.; max_mass = 17.
-        mass_range = np.arange(min_mass, max_mass+0.05, 0.05)
+        mass_range = np.arange(Mhalo_MIN, Mhalo_MAX+0.05, 0.05)
         sample_tracks = []
 
         for i,m in enumerate(mass_range):
@@ -144,9 +148,9 @@ def DREAM_track(halo_catalog,
         t_for_interp = np.array([])
         age_for_interp = np.array([])
 
-    mergers_params = [0, 0., -1., -1., -1., input_params_run.z_range[1] - input_params_run.z_range[0], \
+    """mergers_params = [0, 0., -1., -1., -1., input_params_run.z_range[1] - input_params_run.z_range[0], \
                         input_params_run.z_range[-1], input_params_run.sub_mass_params, type_orbital_circularity, orbital_circularity, fudge, input_params_run.max_order]
-    mergers_params = mergers_parameters(*mergers_params)
+    mergers_params = mergers_parameters(*mergers_params)"""
 
     cosmo_params = [Cosmo.Om0, Cosmo.Ob0, Cosmo.sigma8, Cosmo.ns, Cosmo.h, Cosmo.H0,
                     Cosmo.Om(input_params_run.z_range), Cosmo.Ob(input_params_run.z_range), Cosmo.Hz(input_params_run.z_range), input_params_run.z_range, input_params_run.z_range.size]
@@ -159,17 +163,33 @@ def DREAM_track(halo_catalog,
     # get sub halo mass functions
     Params = [0.22, -0.91, 6., 3., 1.] #Jiang \& van den Bosch 2016 Table A1, Unevolved, total
     Params_1st_order = [0.13, -0.83, 1.33, -0.02, 5.67, 1.19]
-    psi = 10**np.arange(8,16,0.1)/10**14
-    shmf_all = analytic_SHMFs.vdB_USHMF(Params, 14, np.arange(8,16,0.1))
-    shmf_1st = analytic_SHMFs.vdB_USHMF_1st_order(Params_1st_order, 14, np.arange(8,16,0.1))
-    shmf_2nd = analytic_SHMFs.vdB_USHMF_ith_order(Params_1st_order, 14, np.arange(8,16,0.1), 2)
-    shmf_3rd = analytic_SHMFs.vdB_USHMF_ith_order(Params_1st_order, 14, np.arange(8,16,0.1), 3)
-    shmf_4th = analytic_SHMFs.vdB_USHMF_ith_order(Params_1st_order, 14, np.arange(8,16,0.1), 4)
-    shmf_5th = analytic_SHMFs.vdB_USHMF_ith_order(Params_1st_order, 14, np.arange(8,16,0.1), 5)
+    psi = 10**np.arange(8, Mhalo_MAX, subhalo_mass_bin) / 10**Mhalo_MAX
+    shmf_all = vdB_USHMF(Params, Mhalo_MAX, np.arange(Mhalo_MIN, Mhalo_MAX, subhalo_mass_bin))
+    shmf_1st = vdB_USHMF_1st_order(Params_1st_order, Mhalo_MAX, np.arange(Mhalo_MIN, Mhalo_MAX, subhalo_mass_bin))
+    shmf_2nd = vdB_USHMF_ith_order(Params_1st_order, Mhalo_MAX, np.arange(Mhalo_MIN, Mhalo_MAX, subhalo_mass_bin), 2)
+    shmf_3rd = vdB_USHMF_ith_order(Params_1st_order, Mhalo_MAX, np.arange(Mhalo_MIN, Mhalo_MAX, subhalo_mass_bin), 3)
+    shmf_4th = vdB_USHMF_ith_order(Params_1st_order, Mhalo_MAX, np.arange(Mhalo_MIN, Mhalo_MAX, subhalo_mass_bin), 4)
+    shmf_5th = vdB_USHMF_ith_order(Params_1st_order, Mhalo_MAX, np.arange(Mhalo_MIN, Mhalo_MAX, subhalo_mass_bin), 5)
     #shmf_all = shmf_1st + shmf_2nd + shmf_3rd
+
+    """for i in range(psi.size):
+        if -2. < np.log10(psi[i]):
+            f1 = 1.; f2 = 0.00001; f = np.log10(psi[i]) * 0.5 * (f2-f1) + f2
+            shmf_all[i] *= f; shmf_1st[i] *= f; shmf_2nd[i] *= f"""
+
     SHMF = [shmf_all, shmf_1st, shmf_2nd, shmf_3rd, shmf_4th, shmf_5th, psi, psi.size]
     SHMF = subhalo_mass_functions(*SHMF)
     ##################################
+
+    """import matplotlib.pyplot as plt
+    plt.ion()
+    plt.figure(1); plt.clf()
+    plt.plot(np.log10(psi), np.log10(shmf_all))
+    plt.plot(np.log10(psi), np.log10(shmf_1st))
+    plt.plot(np.log10(psi), np.log10(shmf_2nd))
+    plt.ylim(-3); plt.xlim(right=0.5)
+    plt.show()
+    sys.exit()"""
 
     print("\nGenerating mergers...")
     mergers.generate_mergers.restype = c_int
@@ -177,13 +197,21 @@ def DREAM_track(halo_catalog,
     for i in tqdm(range(len(halo_catalog))):
 
         if input_params_run.use_mean_track:
-            assert min_mass<=halo_catalog[i]<=max_mass, "Halo mass out of range. Min: log(M/Msun) = 9. Max: log(M/Msun) = 17."
+            assert Mhalo_MIN<=halo_catalog[i]<=Mhalo_MAX, "Halo mass out of range. Min: log(M/Msun) = 9. Max: log(M/Msun) = 17."
             track = sample_tracks[halo_index[i]]
         elif not input_params_run.use_mean_track:
             track = accretion_tracks[i]
 
-        mergers_params.id = id_list[i]
-        mergers_params.halo_mass_at_z0 = track[0]
+        #mergers_params.id = id_list[i]
+        #mergers_params.halo_mass_at_z0 = track[0]
+
+        mergers_params = [id_list[i], track[0], -1., -1., -1., \
+                          input_params_run.z_range[1] - input_params_run.z_range[0], input_params_run.z_range[-1], \
+                          (halo_catalog[i]+np.log10(input_params_run.sub_mass_res), halo_catalog[i], subhalo_mass_bin), \
+                          type_orbital_circularity, orbital_circularity, fudge, input_params_run.max_order]
+        mergers_params = mergers_parameters(*mergers_params)
+
+
 
         N = mergers.generate_mergers(mergers_params,
                                      track,

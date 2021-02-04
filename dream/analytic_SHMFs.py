@@ -175,7 +175,6 @@ def vdB_USHMF_ith_order(Params, M_host, M_subhalos_range, order):
 
     m_for_integrate = np.arange(0, M_host, 0.01)
 
-
     phi_1 = []
     for m in m_for_integrate:
         phi_1.append(vdB_USHMF_1st_order(Params, m, M_subhalos_range))

@@ -51,32 +51,16 @@ double f_loss(double tau){
 int compute_accretion_from_mergers(DM_catalogue *reduced_catalog,
                                    //double *SMHM_params,
                                    stellar_mass_halo_mass *SMHM,
-                                   int smhm_data_rows,
-                                   int smhm_data_cols,
-                                   double *smhm_data_matrix,
-                                   double *smhm_data_redshift,
-                                   double *smhm_data_Mstar,
+                                   SMHM_matrix *smhm_data,
                                    double scatter,
                                    double *z,
                                    int len_z,
-                                   double **merged_stellar_mass, double mstar) {
+                                   double **merged_stellar_mass, double mstar,
+                                   cosmological_parameters *cosmo_params) {
 
   int i, j;
 
   double SMHM_params[8];
-
-  //MM comment stays for lines introduced to test the major mergers number epoch
-  //FE comment stays for lines introduced to test the fraction of ellipticals
-
-  double *num_major_mergers; //MM
-  dream_call(double_calloc(len_z, &num_major_mergers), _alloc_error_message_); //MM
-
-  if (SMHM->is_analytical == _True_){
-
-    dream_call(get_SMHM_params(SMHM->model,
-                                &SMHM_params[0]),
-                _get_SMHM_params_error_message_);
-  }
 
   double merged_stellar_mass_at_z;
 
@@ -91,10 +75,6 @@ int compute_accretion_from_mergers(DM_catalogue *reduced_catalog,
     return _success_;
   }
 
-  FILE *fp; //MM
-  fp = fopen("Test_figures/Test_major_mergers/number_major_mergers_vs_z.txt", "w"); //MM
-  fprintf(fp, "# 1st col: redshift\n# 2nd col: average major mergers number\n");
-
   for (i=0; i<len_z; i++) {
 
     *(*merged_stellar_mass+i) = 0.;
@@ -103,20 +83,9 @@ int compute_accretion_from_mergers(DM_catalogue *reduced_catalog,
 
       if ( *(z+i) <= (*(reduced_catalog->z_at_merge+j)) ) {
 
-        if (SMHM->is_analytical == _True_){
-
-          dream_call(SMHM_Grylls_param(*(reduced_catalog->mass_mergers+j),
-                                        SMHM_params,
-                                        SMHM->scatter,
-                                        *(reduced_catalog->z_infall+j),
-                                        &merged_stellar_mass_at_z),
-                      _SMHM_error_message_);
-        } else if (SMHM->is_analytical == _False_){
-
-          dream_call(SMHM_numerical_interp(*(reduced_catalog->mass_mergers+j), SMHM, smhm_data_rows, smhm_data_cols, smhm_data_matrix, smhm_data_redshift, smhm_data_Mstar, *(reduced_catalog->z_infall+j), &merged_stellar_mass_at_z),
-                      _SMHM_error_message_);
-
-        }
+        dream_call(SMHM_numerical_interp(*(reduced_catalog->mass_mergers+j),
+                                            SMHM, smhm_data, *(reduced_catalog->z_infall+j), &merged_stellar_mass_at_z),
+                    _SMHM_error_message_);
 
         *(*merged_stellar_mass+i) += pow(10., merged_stellar_mass_at_z);
 
@@ -132,94 +101,75 @@ int compute_accretion_from_mergers(DM_catalogue *reduced_catalog,
 
   }
 
-  double frac; //FE
-  int k, N = 100000; //FE
-  int ID[N]; //FE
-  int counter; //FE
-  for (i=0; i<N; i++) {ID[i] = 0;} //FE
+
+  // BELOW TEST FRACTION OF ELLIPTICALS
+
+  /*
+  double frac;
+  int k, N = 100000;
+  int ID[N];
+  int counter;
+  for (i=0; i<N; i++) {ID[i] = 0;}
   frac = 0.; counter = 0;
+  int has_major_merger;
+  double *Mhalo_track, *Mstar_track;
+  double Mhalo;
+  dream_call(SMHM_numerical_interp_inverse(mstar, SMHM, smhm_data, *(reduced_catalog->z_infall+j), &Mhalo),
+              _SMHM_error_message_);
+  dream_call(double_malloc(len_z, &Mhalo_track), _alloc_error_message_);
+  dream_call(double_malloc(len_z, &Mstar_track), _alloc_error_message_);
+  dream_call(Mass_acc_history_VDB(Mhalo, z, len_z, cosmo_params, &Mhalo_track), _mass_acc_error_message_);
+  dream_call(Mhalo_track_to_Mstar_track(Mhalo_track, SMHM, smhm_data, z, len_z, &Mstar_track),
+               _Mhalo_track_to_Mstar_track_error_message_);
 
   for (i=0; i<len_z-1; i++) {
 
     for (j=0; j<reduced_catalog->len_mergers; j++) {
 
-      //if ( ( *(z+i) <= (*(reduced_catalog->z_at_merge+j)) ) && (*(reduced_catalog->z_at_merge+j) < (*(z+i+1)) ) ) {
+      has_major_merger = 0;
+
       if ( *(z+i) <= (*(reduced_catalog->z_at_merge+j)) ) {
-      //if ( *(z+i) <= (*(reduced_catalog->z_infall+j)) ) {
-        if (SMHM->is_analytical == _True_){
 
-          dream_call(SMHM_Grylls_param(*(reduced_catalog->mass_mergers+j),
-                                        SMHM_params,
-                                        SMHM->scatter,
-                                        *(reduced_catalog->z_infall+j),
-                                        &merged_stellar_mass_at_z),
-                      _SMHM_error_message_);
-        } else if (SMHM->is_analytical == _False_){
+        dream_call(SMHM_numerical_interp(*(reduced_catalog->mass_mergers+j), SMHM, smhm_data, *(reduced_catalog->z_infall+j), &merged_stellar_mass_at_z),
+                    _SMHM_error_message_);
 
-          dream_call(SMHM_numerical_interp(*(reduced_catalog->mass_mergers+j), SMHM, smhm_data_rows, smhm_data_cols, smhm_data_matrix, smhm_data_redshift, smhm_data_Mstar, *(reduced_catalog->z_infall+j), &merged_stellar_mass_at_z),
-                      _SMHM_error_message_);
-
-        }
-
-        int this_parent_id = 0; //FE
-        for(k=0; k<reduced_catalog->len_parents; k++){
-          if (reduced_catalog->id_parents[k] == reduced_catalog->id_mergers[j]){
-            if (SMHM->is_analytical == _True_){
-              dream_call(SMHM_Grylls_param(reduced_catalog->mass_parents[k],
-                                            SMHM_params,
-                                            SMHM->scatter,
-                                            0.1,
-                                            &mstar),
-                          _SMHM_error_message_);
-            } else if (SMHM->is_analytical == _False_){
-              dream_call(SMHM_numerical_interp(reduced_catalog->mass_parents[k], SMHM, smhm_data_rows, smhm_data_cols, smhm_data_matrix, smhm_data_redshift, smhm_data_Mstar, 0.1, &mstar),
-                          _SMHM_error_message_);
-
-            }
-          }
-          break;
-        }
-        //printf("%lf\n", mstar);
-
+        mstar = linear_interp(*(reduced_catalog->z_at_merge+j), z, Mstar_track, len_z);
         if (pow(10., merged_stellar_mass_at_z) / pow(10., mstar) > 0.25 ) { //MM
-          //printf("%lf\n", merged_stellar_mass_at_z);
-          *(num_major_mergers+i) += 1.; //MM
-        } //MM
+
+          has_major_merger += 1;
+        }
       }
 
-      if (i==0){ //FE
-        if ( (*(num_major_mergers+i)>0.) && (j==0) ) {
+      if (i==0){
+        if ( (has_major_merger>0.) && (j==0) ) {
           frac += 1.;
           ID[counter] = reduced_catalog->id_mergers[j];
           counter += 1;
-        //} else if ( (*(num_major_mergers+i)>0.) && (j>0) && (reduced_catalog->id_mergers[j] != reduced_catalog->id_mergers[j-1]) ) {
-        } else if ( (*(num_major_mergers+i)>0.) && (j>0) ) {
+        } else if ( (has_major_merger>0.) && (j>0) ) {
           int id_exist = _False_;
           for (k=0; k<counter; k++){
             if (ID[k] == reduced_catalog->id_mergers[j]) {id_exist = _True_; break;}
           }
           if (id_exist == _False_) {
             frac += 1.;
-            //printf("\nmajor merger detected %lf\n", frac);
             ID[counter] = reduced_catalog->id_mergers[j];
             counter += 1;
           }
-        } //FE
+        }
       }
 
     }
-    *(num_major_mergers+i) /= (double)reduced_catalog->len_parents; //MM
-    fprintf(fp, "%lf %lf\n", *(z+i), *(num_major_mergers+i)); //MM
   }
 
   printf("\nnumber of centrals = %d\n", reduced_catalog->len_parents);
   printf("number of ellipticals = %d\n", (int)frac);
 
-  frac /= (double)reduced_catalog->len_parents; //FE
+  frac /= (double)reduced_catalog->len_parents;
   printf("fraction of ellipticals = %lf\n", frac);
 
-  fclose(fp); //MM
-  dream_call(dealloc(num_major_mergers), _dealloc_error_message_); //MM
+  dream_call(dealloc(Mhalo_track), _dealloc_error_message_);
+  dream_call(dealloc(Mstar_track), _dealloc_error_message_);
+  */
 
   return _success_;
 }
@@ -284,8 +234,6 @@ int compute_star_formation_rate(double *star_formation_history,
   * @ cosmo_time -> cosmological time
 **/
 void compute_star_formation(stellar_mass_halo_mass *SMHM,
-                            //char *SMHM_model,
-                            //double scatter,
                             double *stellar_masses_for_plot,
                             int len_stellar_masses_for_plot,
                             double *redshifts_for_SFR,
@@ -301,17 +249,13 @@ void compute_star_formation(stellar_mass_halo_mass *SMHM,
   double Mhalo;
   FILE *file_pointer;
 
+  SMHM_matrix *smhm_data;
+  smhm_data = (SMHM_matrix *)malloc(sizeof(SMHM_matrix));
+
   SMHM->scatter = 0.; //force scatter to 0
 
-  int smhm_data_rows, smhm_data_cols;
-  double *smhm_data_matrix, *smhm_data_redshift, *smhm_data_Mstar;
-
-  if (SMHM->is_analytical == _False_){
-
-    dream_call(SMHM_read_matrix(SMHM, &smhm_data_rows, &smhm_data_cols, &smhm_data_matrix, &smhm_data_redshift, &smhm_data_Mstar),
-                _SMHM_read_matrix_error_message_);
-
-  }
+  dream_call(SMHM_read_matrix(SMHM, &smhm_data),
+             _SMHM_read_matrix_error_message_);
 
   double *central_gal_masses;
   double *z, *lookback_time, *Mhalo_track;
@@ -319,36 +263,17 @@ void compute_star_formation(stellar_mass_halo_mass *SMHM,
   int len_z, len_stellar_masses_for_SFR;
 
   dream_call(double_malloc(DM_catalog->len_parents,
-                            &central_gal_masses),
-              _alloc_error_message_);
-
-  if (SMHM->is_analytical == _True_){
-
-    dream_call(get_SMHM_params(SMHM->model,
-                                &SMHM_params[0]),
-                _get_SMHM_params_error_message_);
-
-    for (i=0; i<DM_catalog->len_parents; i++){
-
-      dream_call(SMHM_Grylls_param(*(DM_catalog->mass_parents+i),
-                                    SMHM_params, SMHM->scatter, 0.1,
-                                    &(*(central_gal_masses+i))),
-                  _SMHM_error_message_); //log[M/Msun]
-
-    }
-
-  } else if (SMHM->is_analytical == _False_){
+                           &central_gal_masses),
+             _alloc_error_message_);
 
     for (i=0; i<DM_catalog->len_parents; i++){
 
       dream_call(SMHM_numerical_interp(*(DM_catalog->mass_parents+i),
-                                        SMHM, smhm_data_rows, smhm_data_cols, smhm_data_matrix, smhm_data_redshift, smhm_data_Mstar,
+                                        SMHM, smhm_data,
                                         0.1, &(*(central_gal_masses+i))),
                   _SMHM_error_message_);
 
     }
-
-  }
 
   //SMHM->scatter = 0.; //set scatter back to 0
 
@@ -356,32 +281,31 @@ void compute_star_formation(stellar_mass_halo_mass *SMHM,
   len_z = (int)(8./z_bin);
 
   dream_call(double_malloc(len_z, &z),
-              _alloc_error_message_);
+             _alloc_error_message_);
 
   dream_call(arange(0., 8., z_bin, len_z, &z),
-              _arange_error_message);
+             _arange_error_message);
 
   dream_call(double_malloc(len_z-1, &lookback_time),
-              _alloc_error_message_);
+             _alloc_error_message_);
 
   for(i=0; i<len_z-1; i++){
-    *(lookback_time+i) = linear_interp(*(z+i), cosmo_time->redshift, \
-                          cosmo_time->lookback_time, cosmo_time->length);
+    *(lookback_time+i) = linear_interp(*(z+i), cosmo_time->redshift, cosmo_time->lookback_time, cosmo_time->length);
   }
 
-  len_stellar_masses_for_SFR = (int)((12.5-8.)/0.1);
+  len_stellar_masses_for_SFR = (int)((12.5-6.)/0.1);
 
   dream_call(double_malloc(len_stellar_masses_for_SFR,
                             &stellar_masses_for_SFR),
               _alloc_error_message_);
 
-  dream_call(arange(8., 12.5, 0.1,
-                     len_stellar_masses_for_SFR,
-                     &stellar_masses_for_SFR),
+  dream_call(arange(6., 12.5, 0.1,
+                    len_stellar_masses_for_SFR,
+                    &stellar_masses_for_SFR),
               _arange_error_message);
 
   dream_call(double_malloc(len_z, &Mhalo_track),
-              _alloc_error_message_);
+             _alloc_error_message_);
 
 
   int **idx_cen = malloc(len_stellar_masses_for_SFR * sizeof(int *));
@@ -392,32 +316,32 @@ void compute_star_formation(stellar_mass_halo_mass *SMHM,
   for (j=0; j<len_stellar_masses_for_SFR; j++){
 
     dream_call(int_malloc(DM_catalog->len_parents, &(*(idx_cen+j))),
-                _alloc_error_message_);
+               _alloc_error_message_);
 
     dream_call(int_malloc(DM_catalog->len_mergers, &(*(idx_sat+j))),
-                _alloc_error_message_);
+               _alloc_error_message_);
 
     m = *(stellar_masses_for_SFR+j);
 
-    dream_call(get_mask_in_range(central_gal_masses, m, m+0.2,
-                                  DM_catalog->len_parents, &(*(idx_cen+j))),
-                _get_mask_error_message_);
+    dream_call(get_mask_in_range(central_gal_masses, m, m+0.1,
+                                 DM_catalog->len_parents, &(*(idx_cen+j))),
+               _get_mask_error_message_);
 
     int *id_halo_idx_cen;
     int len_id_halo_idx_cen = 0;
 
     dream_call(int_malloc(len_id_halo_idx_cen,
-                           &id_halo_idx_cen),
-                _alloc_error_message_);
+                          &id_halo_idx_cen),
+               _alloc_error_message_);
 
     for (i=0; i<DM_catalog->len_parents; i++){
 
       if (*(*(idx_cen+j)+i) == _True_){
 
         dream_call(int_append(len_id_halo_idx_cen,
-                               &id_halo_idx_cen,
-                               *(DM_catalog->id_parents+i)),
-                    _append_error_message_);
+                              &id_halo_idx_cen,
+                              *(DM_catalog->id_parents+i)),
+                   _append_error_message_);
 
         len_id_halo_idx_cen += 1;
 
@@ -426,14 +350,14 @@ void compute_star_formation(stellar_mass_halo_mass *SMHM,
     }
 
     dream_call(array1_elements_in_array2(DM_catalog->id_mergers,
-                                          id_halo_idx_cen,
-                                          DM_catalog->len_mergers,
-                                          len_id_halo_idx_cen,
-                                          &(*(idx_sat+j))),
-                _get_mask_error_message_);
+                                         id_halo_idx_cen,
+                                         DM_catalog->len_mergers,
+                                         len_id_halo_idx_cen,
+                                         &(*(idx_sat+j))),
+               _get_mask_error_message_);
 
     dream_call(dealloc(id_halo_idx_cen),
-                _dealloc_error_message_);
+               _dealloc_error_message_);
   }
 
 
@@ -454,25 +378,25 @@ void compute_star_formation(stellar_mass_halo_mass *SMHM,
 
     dream_call(int_malloc(len_halo_catalog_idx_cen,
                            &id_halo_catalog_idx_cen),
-                _alloc_error_message_);
+               _alloc_error_message_);
 
     dream_call(double_malloc(len_halo_catalog_idx_cen,
-                              &halo_catalog_idx_cen),
-                _alloc_error_message_);
+                             &halo_catalog_idx_cen),
+               _alloc_error_message_);
 
     for (j=0; j<DM_catalog->len_parents; j++){
 
       if (*(*(idx_cen+i)+j) == _True_){
 
         dream_call(int_append(len_halo_catalog_idx_cen,
-                               &id_halo_catalog_idx_cen,
-                               *(DM_catalog->id_parents+j)),
-                    _append_error_message_);
+                              &id_halo_catalog_idx_cen,
+                              *(DM_catalog->id_parents+j)),
+                   _append_error_message_);
 
         dream_call(double_append(len_halo_catalog_idx_cen,
-                                  &halo_catalog_idx_cen,
-                                  *(DM_catalog->mass_parents+j)),
-                    _append_error_message_);
+                                 &halo_catalog_idx_cen,
+                                 *(DM_catalog->mass_parents+j)),
+                   _append_error_message_);
 
         len_halo_catalog_idx_cen += 1;
 
@@ -483,30 +407,15 @@ void compute_star_formation(stellar_mass_halo_mass *SMHM,
     Mhalo = mean(halo_catalog_idx_cen, len_halo_catalog_idx_cen); //log(M/Msun)
 
     dream_call(Mass_acc_history_VDB(Mhalo, z, len_z, cosmo_params, &Mhalo_track),
-                _mass_acc_error_message_);
+               _mass_acc_error_message_);
 
     dream_call(double_calloc(len_z, &(*(Mstar_track+i))),
-                _alloc_error_message_);
+               _alloc_error_message_);
 
     dream_call(Mhalo_track_to_Mstar_track(Mhalo_track,
-                                           SMHM, smhm_data_rows, smhm_data_cols, smhm_data_matrix, smhm_data_redshift, smhm_data_Mstar,
-                                           z, len_z, &(*(Mstar_track+i))),
-                _Mhalo_track_to_Mstar_track_error_message_);
-
-    /////////////////////////////////////
-    /*if (i==35){
-      double X;
-      dream_call(SMHM_numerical_interp(Mhalo_track[0], SMHM, smhm_data_rows, smhm_data_cols, smhm_data_matrix, smhm_data_redshift, smhm_data_Mstar, 0.1, &X),
-                  _SMHM_error_message_); printf("%lf %fl\n", m, X);
-      FILE *fp;
-      fp = fopen("van_den_Bosch_tracks/track_12.txt", "w");
-      for(k=0; k<len_z;k++){
-        fprintf(fp, "%lf %lf %lf\n", z[k], Mhalo_track[k], Mstar_track[i][k]);
-      } fclose(fp);
-      exit(0);
-    }*/
-    /////////////////////////////////////
-    //printf("%lf\n", Mstar_track[i][0]);
+                                          SMHM, smhm_data,
+                                          z, len_z, &(*(Mstar_track+i))),
+               _Mhalo_track_to_Mstar_track_error_message_);
 
     int *id_mergers_idx_sat;
     double *mergers_array_idx_sat;
@@ -515,44 +424,44 @@ void compute_star_formation(stellar_mass_halo_mass *SMHM,
     int len_mergers_array_idx_sat = 0;
 
     dream_call(int_malloc(len_mergers_array_idx_sat,
-                           &id_mergers_idx_sat),
-                _alloc_error_message_);
+                          &id_mergers_idx_sat),
+               _alloc_error_message_);
 
     dream_call(double_malloc(len_mergers_array_idx_sat,
-                              &mergers_array_idx_sat),
-                _alloc_error_message_);
+                             &mergers_array_idx_sat),
+               _alloc_error_message_);
 
     dream_call(double_malloc(len_mergers_array_idx_sat,
-                              &z_infall_idx_sat),
-                _alloc_error_message_);
+                             &z_infall_idx_sat),
+               _alloc_error_message_);
 
     dream_call(double_malloc(len_mergers_array_idx_sat,
-                              &z_at_merge_idx_sat),
-                _alloc_error_message_);
+                             &z_at_merge_idx_sat),
+               _alloc_error_message_);
 
     for (j=0; j<DM_catalog->len_mergers; j++){
 
       if (*(*(idx_sat+i)+j) == _True_){
 
         dream_call(int_append(len_mergers_array_idx_sat,
-                               &id_mergers_idx_sat,
-                               *(DM_catalog->id_mergers+j)),
-                    _append_error_message_);
+                              &id_mergers_idx_sat,
+                              *(DM_catalog->id_mergers+j)),
+                   _append_error_message_);
 
         dream_call(double_append(len_mergers_array_idx_sat,
-                                  &mergers_array_idx_sat,
-                                  *(DM_catalog->mass_mergers+j)),
-                    _append_error_message_);
+                                 &mergers_array_idx_sat,
+                                 *(DM_catalog->mass_mergers+j)),
+                   _append_error_message_);
 
         dream_call(double_append(len_mergers_array_idx_sat,
-                                  &z_infall_idx_sat,
-                                  *(DM_catalog->z_infall+j)),
-                    _append_error_message_);
+                                 &z_infall_idx_sat,
+                                 *(DM_catalog->z_infall+j)),
+                   _append_error_message_);
 
         dream_call(double_append(len_mergers_array_idx_sat,
-                                  &z_at_merge_idx_sat,
-                                  *(DM_catalog->z_at_merge+j)),
-                    _append_error_message_);
+                                 &z_at_merge_idx_sat,
+                                 *(DM_catalog->z_at_merge+j)),
+                   _append_error_message_);
 
         len_mergers_array_idx_sat += 1;
 
@@ -561,7 +470,7 @@ void compute_star_formation(stellar_mass_halo_mass *SMHM,
     }
 
     dream_call(double_malloc(len_z, &(*(merged_stellar_mass+i))),
-                _alloc_error_message_);
+               _alloc_error_message_);
 
     DM_catalogue *reduced_catalog = malloc(sizeof(DM_catalogue));
     reduced_catalog->id_parents = id_halo_catalog_idx_cen;
@@ -573,29 +482,27 @@ void compute_star_formation(stellar_mass_halo_mass *SMHM,
     reduced_catalog->z_infall = z_infall_idx_sat;
     reduced_catalog->z_at_merge = z_at_merge_idx_sat;
 
-    dream_call(compute_accretion_from_mergers(reduced_catalog,
-                                               SMHM, smhm_data_rows, smhm_data_cols, smhm_data_matrix, smhm_data_redshift, smhm_data_Mstar,
-                                               SMHM->scatter, z, len_z, &(*(merged_stellar_mass+i)), m),
-                _merged_stellar_mass_error_message_);
+    dream_call(compute_accretion_from_mergers(reduced_catalog, SMHM, smhm_data,
+                                              SMHM->scatter, z, len_z,
+                                              &(*(merged_stellar_mass+i)), m, cosmo_params),
+               _merged_stellar_mass_error_message_);
 
-    //if (i==22){ printf("\nComputed mergers for log(Mstar/Msun) = %lf\n", m); exit(0); }
     printf("Computed mergers for log(Mstar/Msun) = %lf\n", m);
 
     dream_call(double_malloc(len_z, &(*(stellar_mass+i))),
-                _alloc_error_message_);
+               _alloc_error_message_);
 
     for(j=0; j<len_z; j++){
-      *(*(stellar_mass+i)+j) = pow(10., *(*(Mstar_track+i)+j)) -
-                                pow(10., *(*(merged_stellar_mass+i)+j));
+      *(*(stellar_mass+i)+j) = pow(10., *(*(Mstar_track+i)+j)) - pow(10., *(*(merged_stellar_mass+i)+j));
     }
 
     dream_call(double_malloc(len_z, &(*(star_formation_rate+i))),
-                _alloc_error_message_);
+               _alloc_error_message_);
 
     dream_call(compute_star_formation_rate(*(stellar_mass+i),
-                                            lookback_time, len_z-1, len_z,
-                                            &(*(star_formation_rate+i))),
-                _compute_SFR_error_message_);
+                                           lookback_time, len_z-1, len_z,
+                                           &(*(star_formation_rate+i))),
+               _compute_SFR_error_message_);
 
     for(k=0; k<len_stellar_masses_for_plot; k++){
 
@@ -625,25 +532,25 @@ void compute_star_formation(stellar_mass_halo_mass *SMHM,
     }
 
     dream_call(dealloc(id_halo_catalog_idx_cen),
-                _dealloc_error_message_);
+               _dealloc_error_message_);
 
     dream_call(dealloc(halo_catalog_idx_cen),
-                _dealloc_error_message_);
+               _dealloc_error_message_);
 
     dream_call(dealloc(id_mergers_idx_sat),
-                _dealloc_error_message_);
+               _dealloc_error_message_);
 
     dream_call(dealloc(mergers_array_idx_sat),
-                _dealloc_error_message_);
+               _dealloc_error_message_);
 
     dream_call(dealloc(z_infall_idx_sat),
-                _dealloc_error_message_);
+               _dealloc_error_message_);
 
     dream_call(dealloc(z_at_merge_idx_sat),
-                _dealloc_error_message_);
+               _dealloc_error_message_);
 
     dream_call(dealloc(reduced_catalog),
-                _dealloc_error_message_);
+               _dealloc_error_message_);
 
   }
 
@@ -651,13 +558,13 @@ void compute_star_formation(stellar_mass_halo_mass *SMHM,
   int len_linspace = 1000;
 
   dream_call(double_malloc(len_linspace, &DM_linspace),
-              _alloc_error_message_);
+             _alloc_error_message_);
 
   dream_call(double_malloc(len_linspace, &SM_linspace),
-              _alloc_error_message_);
+             _alloc_error_message_);
 
   dream_call(linear_space(10., 16., len_linspace, &DM_linspace),
-              _linear_space_error_message);
+             _linear_space_error_message);
 
   for(j=0; j<len_z; j++){
 
@@ -676,42 +583,34 @@ void compute_star_formation(stellar_mass_halo_mass *SMHM,
           double *halo_masses_for_SFR, *z_for_evolution, *this_halo_track;
 
           dream_call(double_malloc(len_stellar_masses_for_SFR,
-                                    &stellar_masses_to_plot),
-                      _alloc_error_message_);
+                                   &stellar_masses_to_plot),
+                     _alloc_error_message_);
 
           dream_call(double_malloc(len_stellar_masses_for_SFR,
-                                    &halo_masses_for_SFR),
-                      _alloc_error_message_);
+                                   &halo_masses_for_SFR),
+                     _alloc_error_message_);
 
           int len_z_for_evolution = (int)((z_+0.1)/0.05);
 
-          dream_call(double_malloc(len_z_for_evolution, &z_for_evolution),
-                      _alloc_error_message_);
+          dream_call(double_malloc(len_z_for_evolution,
+                                   &z_for_evolution),
+                     _alloc_error_message_);
 
-          dream_call(double_malloc(len_z_for_evolution, &this_halo_track),
-                      _alloc_error_message_);
+          dream_call(double_malloc(len_z_for_evolution,
+                                   &this_halo_track),
+                     _alloc_error_message_);
 
           dream_call(arange(0., z_+0.1, 0.05,
-                             len_z_for_evolution, &z_for_evolution),
-                      _arange_error_message);
+                            len_z_for_evolution,
+                            &z_for_evolution),
+                     _arange_error_message);
 
           for (i=0; i<len_linspace; i++){
 
-            if (SMHM->is_analytical == _True_){
-
-              dream_call(SMHM_Grylls_param(*(DM_linspace+i),
-                                            SMHM_params, SMHM->scatter,
-                                            z_, &(*(SM_linspace+i))),
-                          _SMHM_error_message_);
-
-            } else if (SMHM->is_analytical == _False_){
-
-              dream_call(SMHM_numerical_interp(*(DM_linspace+i),
-                                                SMHM, smhm_data_rows, smhm_data_cols, smhm_data_matrix, smhm_data_redshift, smhm_data_Mstar,
-                                                z_, &(*(SM_linspace+i))),
-                          _SMHM_error_message_);
-
-            }
+            dream_call(SMHM_numerical_interp(*(DM_linspace+i),
+                                             SMHM, smhm_data,
+                                             z_, &(*(SM_linspace+i))),
+                       _SMHM_error_message_);
 
           }
 
@@ -721,35 +620,25 @@ void compute_star_formation(stellar_mass_halo_mass *SMHM,
                                         SM_linspace, DM_linspace, len_linspace);
 
             dream_call(Mass_acc_history_VDB(*(halo_masses_for_SFR+i),
-                                             z_for_evolution, len_z_for_evolution,
-                                             cosmo_params, &this_halo_track),
-                        _mass_acc_error_message_);
+                                            z_for_evolution, len_z_for_evolution,
+                                            cosmo_params, &this_halo_track),
+                       _mass_acc_error_message_);
 
-            if (SMHM->is_analytical == _True_){
+            dream_call(SMHM_numerical_interp(*(this_halo_track+len_z_for_evolution-1),
+                                             SMHM, smhm_data,
+                                             z_, &(*(stellar_masses_to_plot+i))),
+                       _SMHM_error_message_);
 
-              dream_call(SMHM_Grylls_param(*(this_halo_track+len_z_for_evolution-1),
-                                            SMHM_params, SMHM->scatter, z_,
-                                            &(*(stellar_masses_to_plot+i))),
-                          _SMHM_error_message_);
-
-            } else if (SMHM->is_analytical == _False_){
-
-              dream_call(SMHM_numerical_interp(*(this_halo_track+len_z_for_evolution-1),
-                                                SMHM, smhm_data_rows, smhm_data_cols, smhm_data_matrix, smhm_data_redshift, smhm_data_Mstar,
-                                                z_, &(*(stellar_masses_to_plot+i))),
-                          _SMHM_error_message_);
-
-            }
           }
 
           dream_call(dealloc(halo_masses_for_SFR),
-                      _dealloc_error_message_);
+                     _dealloc_error_message_);
 
           dream_call(dealloc(z_for_evolution),
-                      _dealloc_error_message_);
+                     _dealloc_error_message_);
 
           dream_call(dealloc(this_halo_track),
-                      _dealloc_error_message_);
+                     _dealloc_error_message_);
 
         } else {
 
@@ -778,7 +667,7 @@ void compute_star_formation(stellar_mass_halo_mass *SMHM,
 
         if (z_>0.) {
           dream_call(dealloc(stellar_masses_to_plot),
-                      _dealloc_error_message_);
+                     _dealloc_error_message_);
         }
 
       }
@@ -819,59 +708,61 @@ void compute_star_formation(stellar_mass_halo_mass *SMHM,
 
 
   dream_call(dealloc(central_gal_masses),
-              _dealloc_error_message_);
+             _dealloc_error_message_);
 
   dream_call(dealloc(z),
-              _dealloc_error_message_);
+             _dealloc_error_message_);
 
   dream_call(dealloc(lookback_time),
-              _dealloc_error_message_);
+             _dealloc_error_message_);
 
   dream_call(dealloc(stellar_masses_for_SFR),
-              _dealloc_error_message_);
+             _dealloc_error_message_);
 
   for (j=0; j<len_stellar_masses_for_SFR; j++){
     dream_call(dealloc(*(idx_cen+j)),
-                _dealloc_error_message_);
+               _dealloc_error_message_);
     dream_call(dealloc(*(idx_sat+j)),
-                _dealloc_error_message_);
+               _dealloc_error_message_);
     dream_call(dealloc(*(Mstar_track+j)),
-                _dealloc_error_message_);
+               _dealloc_error_message_);
     dream_call(dealloc(*(merged_stellar_mass+j)),
-                _dealloc_error_message_);
+               _dealloc_error_message_);
     dream_call(dealloc(*(stellar_mass+j)),
-                _dealloc_error_message_);
+               _dealloc_error_message_);
     dream_call(dealloc(*(star_formation_rate+j)),
-                _dealloc_error_message_);
+               _dealloc_error_message_);
   }
   dream_call(dealloc(idx_cen),
-              _dealloc_error_message_);
+             _dealloc_error_message_);
   dream_call(dealloc(idx_sat),
-              _dealloc_error_message_);
+             _dealloc_error_message_);
   dream_call(dealloc(Mstar_track),
-              _dealloc_error_message_);
+             _dealloc_error_message_);
   dream_call(dealloc(merged_stellar_mass),
-              _dealloc_error_message_);
+             _dealloc_error_message_);
   dream_call(dealloc(stellar_mass),
-              _dealloc_error_message_);
+             _dealloc_error_message_);
   dream_call(dealloc(star_formation_rate),
-              _dealloc_error_message_);
+             _dealloc_error_message_);
 
   dream_call(dealloc(Mhalo_track),
-              _dealloc_error_message_);
+             _dealloc_error_message_);
 
   dream_call(dealloc(DM_linspace),
-              _dealloc_error_message_);
+             _dealloc_error_message_);
 
   dream_call(dealloc(SM_linspace),
-              _dealloc_error_message_);
+             _dealloc_error_message_);
 
-  if (SMHM->is_analytical == _False_){
-
-    dream_call(dealloc_SMHM_matrix(&smhm_data_matrix, &smhm_data_redshift, &smhm_data_Mstar),
-                _dealloc_error_message_);
-
-  }
+  dream_call(dealloc(smhm_data->redshift),
+             _dealloc_error_message_);
+  dream_call(dealloc(smhm_data->matrix),
+             _dealloc_error_message_);
+  dream_call(dealloc(smhm_data->Mstar),
+             _dealloc_error_message_);
+  dream_call(dealloc(smhm_data),
+             _dealloc_error_message_);
 
   printf("\nStar formation successfully computed.\n");
 

@@ -2,8 +2,6 @@
 @ file info.py
 
 Written by Hao fu
-
-UNDER DEVELOPMENT
 """
 
 
@@ -80,16 +78,6 @@ def analyse_mergers(input_params_info):
             sub_mass_params = (10., M_h+bin, bin)
             Msh_bins = np.arange(sub_mass_params[0], sub_mass_params[1], sub_mass_params[2])
 
-            """
-            # OLD METHOLOGY, KEEP IT HERE, NEED TO FURTHER TEST THE SPEED
-            idx_1 = ma.array(halo_catalog, mask = halo_catalog >= M_h).recordmask
-            idx_2 = ma.array(halo_catalog, mask = halo_catalog < M_h+0.1).recordmask
-            idx_halo = np.logical_and(idx_1, idx_2)
-
-            idx_sub = np.array([], dtype=bool)
-            for i, id in enumerate(id_mergers):
-                idx_sub = np.append(idx_sub, id in id_halo[idx_halo])"""
-
             idx_halo = analyze.get_mask_in_range_(halo_catalog,
                                                  M_h, M_h+bin,
                                                  halo_catalog.size)
@@ -110,31 +98,29 @@ def analyse_mergers(input_params_info):
 
 
             # Z INFALL DISTRIBUTIONS
-            #order_mask = ma.array(orders, mask=orders>=1).recordmask
-            #mask = np.logical_and(order_mask, idx_sub)
             analysis.get_z_infall_distribution(z_infall[idx_sub],
                                                data_folder,
                                                "pdf_redshift_{:.1f}.txt".format(M_h))
 
-            print("ciao\n")
-
             #EVOLVED SHMF
             if input_params_info.want_evolved_shmf:
-                z_ = 0.
+                continue
+                """z_ = 0.
                 analysis.get_evolved_shmf(z_,
                                           mergers_array,
                                           z_infall,
                                           z_at_merge,
                                           M_h, Msh_bins,
                                           N_halos, idx_sub,
-                                          data_folder)
+                                          data_folder)"""
 
             #MERGERS RATE
             if input_params_info.want_mergers_rate:
-                analysis.get_mergers_rate(mergers_array,
+                continue
+                """analysis.get_mergers_rate(mergers_array,
                                           z_infall,
                                           M_h, N_halos, idx_sub,
-                                          data_folder)
+                                          data_folder)"""
 
 
     #STAR FORMATION RATE

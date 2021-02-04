@@ -137,7 +137,7 @@ def get_unevolved_shmf(mergers_array,z_at_merge,
 
     header = "1) 1st column: Msubhalo/Mparent\n2) 2nd column: phi(Msubhalo) [dex^-1]\n"
 
-    psi = 10**(Msh_bins[:-1]+bin/2.) / 10**M_h
+    psi = 10**Msh_bins[:-1] / 10**M_h
 
     phi_M = np.histogram(mergers_array[idx_sub], bins=Msh_bins)[0] / bin / N_halos
     np.savetxt(data_folder+"unevolved-shmf_Mh_"+str(M_h)+".txt", np.column_stack((psi, phi_M)), header = header)
