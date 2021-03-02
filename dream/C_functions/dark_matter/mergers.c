@@ -1058,18 +1058,29 @@ int get_subhaloes(mergers_parameters *mergers_params,
     mass_sum = log10(mass_sum);
     times += 1;
   } while ((mass_sum>mergers_params->halo_mass_at_z) && (times < times_threshold));
+
   if (times >= times_threshold){
-    double available_mass = pow(10., mergers_params->halo_mass_at_z);
-    for (i=0; i<count; i++){
-      do {
-        dream_call(generate_halo_from_mass_function(cum_dshmf,
-                                                     mergers_params->subhalo_mass_range,
-                                                     mergers_params->length,
-                                                     &try_sub_mass[i]),
-                    _mass_from_pdf_error_message_);
-      } while (pow(10.,try_sub_mass[i]) >= available_mass);
-      available_mass -= pow(10., try_sub_mass[i]);
-    }
+    int loop_to_be_repeated;
+    double available_mass;
+    do {
+      loop_to_be_repeated = _False_;
+      available_mass = pow(10., mergers_params->halo_mass_at_z);
+      for (i=0; i<count; i++){
+        //printf("starting %d %d %lf %lf\n", i, count, log10(available_mass), mergers_params->subhalo_mass_range[0]);
+        if (available_mass<pow(10., mergers_params->subhalo_mass_range[0])){
+          loop_to_be_repeated = _True_; break;
+        }
+        do {
+          dream_call(generate_halo_from_mass_function(cum_dshmf,
+                                                       mergers_params->subhalo_mass_range,
+                                                       mergers_params->length,
+                                                       &try_sub_mass[i]),
+                      _mass_from_pdf_error_message_);
+        } while (pow(10.,try_sub_mass[i]) >= available_mass);
+        available_mass -= pow(10., try_sub_mass[i]);
+        //printf("finished %d %lf %lf\n", i, log10(available_mass), try_sub_mass[i]);
+      }
+    } while (loop_to_be_repeated==_True_);
   }
   /*****************************************/
 
