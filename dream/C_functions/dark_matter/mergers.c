@@ -1036,16 +1036,51 @@ int get_subhaloes(mergers_parameters *mergers_params,
     age_at_0 = linear_interp(0., cosmo_time->redshift, cosmo_time->age, cosmo_time->length);
   }
 
-
   int count_unwanted_orders = 0;
+
+
+
+
+  /*****************************************/
+  double try_sub_mass[count];
+  double mass_sum;
+  int times = 0, times_threshold=20;
+  do {
+    mass_sum = 0.;
+    for (i=0; i<count; i++){
+      dream_call(generate_halo_from_mass_function(cum_dshmf,
+                                                   mergers_params->subhalo_mass_range,
+                                                   mergers_params->length,
+                                                   &try_sub_mass[i]),
+                  _mass_from_pdf_error_message_);
+      mass_sum += pow(10., try_sub_mass[i]);
+    }
+    mass_sum = log10(mass_sum);
+    times += 1;
+  } while ((mass_sum>mergers_params->halo_mass_at_z) && (times < times_threshold));
+  if (times >= times_threshold){
+    double available_mass = pow(10., mergers_params->halo_mass_at_z);
+    for (i=0; i<count; i++){
+      do {
+        dream_call(generate_halo_from_mass_function(cum_dshmf,
+                                                     mergers_params->subhalo_mass_range,
+                                                     mergers_params->length,
+                                                     &try_sub_mass[i]),
+                    _mass_from_pdf_error_message_);
+      } while (pow(10.,try_sub_mass[i]) >= available_mass);
+      available_mass -= pow(10., try_sub_mass[i]);
+    }
+  }
+  /*****************************************/
 
   for (i=0; i<count; i++){
 
-    dream_call(generate_halo_from_mass_function(cum_dshmf,
+    /*dream_call(generate_halo_from_mass_function(cum_dshmf,
                                                  mergers_params->subhalo_mass_range,
                                                  mergers_params->length,
                                                  &sub_mass),
-                _mass_from_pdf_error_message_);
+                _mass_from_pdf_error_message_);*/
+    sub_mass = try_sub_mass[i]; /******************************/
 
     dream_call(assign_subhalo_order(mergers_params->max_order,
                                      sub_mass,
