@@ -2,6 +2,19 @@ import numpy as np
 from ctypes import *
 
 
+class DM_halo_accretion(Structure):
+
+    _fields_ = [("track", POINTER(c_double)),
+                ("redshift", POINTER(c_double)),
+                ("length", c_int)]
+
+    def __init__(self, track, redshift, length):
+
+        self.track = track.ctypes.data_as(POINTER(c_double))
+        self.redshift = redshift.ctypes.data_as(POINTER(c_double))
+        self.length = length
+
+
 class mergers_parameters(Structure):
 
     _fields_ = [("id", c_int),

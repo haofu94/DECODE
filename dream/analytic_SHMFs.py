@@ -85,10 +85,11 @@ def tau_merge(central_mass, sub_mass, fudge, z):
         dynamical_friction = dynamical_friction * (1/(1+Redshift))
     """
 
-    #fudge = 0.5
     if fudge<0.:
-        x = 1./MassRatio; m = 4.032021; a = 0.03724761
-        fudge = m*(np.log10(x+a) -np.log10(a))
+        #x = 1./MassRatio; m = 4.032021; a = 0.03724761
+        #fudge = m*(np.log10(x+a) -np.log10(a))
+        fudge = 0.00035035 * (MassRatio - 1.) + 0.65
+        
     Tdyn = fudge*Tdyn
 
     NormalRnd = 0.5 #We are considering only avarage halos on circular orbits

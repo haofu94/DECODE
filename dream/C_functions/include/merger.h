@@ -6,6 +6,16 @@
 # define merger
 
 
+typedef struct DM_halo_accretion{
+
+  double *track;
+  double *redshift;
+  int length;
+
+} DM_halo_accretion;
+
+
+
 /**
   * @ id -> ID of the parent halo
   * @ halo_mass_at_z0 -> mass of the parent halo at z=0 [log(M/Msun)]

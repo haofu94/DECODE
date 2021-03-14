@@ -7,7 +7,6 @@ Written by Chris Marsden, Hao Fu
 import numpy as np
 import scipy as sp
 from scipy.interpolate import interp1d
-from scipy.integrate import trapz
 from colossus.lss import mass_function
 from DM_to_SM import *
 
@@ -38,11 +37,10 @@ def generate_parents_catalogue(input_params_run, h):
     # Calculate cumulative of the halo mass function
     cumulative_mass_function = np.cumsum(local_mass_function * bin_width * catalogue_volume)
 
-    # Get the total number of haloes
-    max_number = np.floor( trapz(local_mass_function*catalogue_volume, np.log10(mass_range)) )
-    if (np.random.uniform(0,1) > trapz(local_mass_function*catalogue_volume, mass_range) - max_number):
+    # Get the maximum cumulative number.
+    max_number = np.floor(np.max(cumulative_mass_function))
+    if (np.random.uniform(0,1) > np.max(cumulative_mass_function)-max_number):
         max_number += 1
-
 
     interpolator = interp1d(cumulative_mass_function, mass_range)
     range_numbers = np.random.uniform(np.min(cumulative_mass_function), np.max(cumulative_mass_function), int(max_number))
@@ -59,8 +57,8 @@ def generate_parents_catalogue(input_params_run, h):
     mass_catalog = np.concatenate((mass_catalog, np.random.uniform(14., 15., 500)))
     mass_catalog = np.concatenate((mass_catalog, np.random.uniform(15., 16., 300)))"""
 
-    #my_mhalo = compute_Mhalo_of_Mstar_for_Model(12, 0., "Grylls") #14.630256589128756
-    #mass_catalog = np.random.uniform(my_mhalo, my_mhalo+0.1, 1000)
-    mass_catalog = np.random.uniform(13, 13.05, 500)
+    my_mhalo = compute_Mhalo_of_Mstar_for_Model(12, 0., "Grylls") #14.630256589128756
+    mass_catalog = np.random.uniform(my_mhalo, my_mhalo+0.1, 1000)
+    #mass_catalog = np.random.uniform(13., 13.1, 10)
 
     return mass_catalog

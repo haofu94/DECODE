@@ -658,37 +658,49 @@ int compute_merging_timescale(double parent_mass,
   * Compute the toal number of haloes given the mass function [N]
   *
   * Input:
-  * mass_function -> mass function (MUST be in units of [dex^-1]
-  * mass_range -> mass range in units of log10(M/Msun)
+  * mass_function -> mass function
   * length -> length of the mass function array
   * count -> pointer to the count variable
   **/
 int compute_total_haloes_number(double *mass_function,
-                                double *mass_range,
                                 int length,
                                 int *count){
 
-  int i;
-  double sum;
+  double * cumulative_mass_function;
 
-  //printf("length = %d\n", length);
-  /*for (i=0; i<length; i++){
-    printf("%lf %lf\n", mass_range[i], mass_function[i]);
-  }*/
+  dream_call(double_calloc(length,
+                            &cumulative_mass_function),
+              _alloc_error_message_);
 
-  sum = integrate_trapz(mass_function, mass_range, length);
+  dream_call(cumsum(mass_function,
+                     length,
+                     &cumulative_mass_function),
+              _cumsum_error_message_); //Cumulative delta-SHMF
 
-  *count = (int)sum;
+  *count = (int)max(cumulative_mass_function, length);
 
   //Fractional part
   //Random number between the highest integer and itself +1
-  if (get_random_uniform((double)(*count), (double)(*count+1)) < sum) {
+  if (get_random_uniform((double)(*count), (double)(*count+1)) < max(cumulative_mass_function, length)) {
 
     *count += 1;
   }
 
-  //printf("number = %d\n", *count);
-  //exit(0);
+  dream_call(dealloc(cumulative_mass_function),
+              _dealloc_error_message_);
+
+
+  //////////////////
+  printf("%d ", *count);
+  double sum = 0.;
+  int i;
+  for (i=0; i<length-1; i++){
+    sum += fabs(mass_function[i] + mass_function[i+1]) / 2.;
+    printf("%lf\n", mass_function[i]);
+  }
+  *count = (int)sum;
+  printf("%d\n", *count);
+  //////////////////
 
   return _success_;
 }
@@ -738,7 +750,7 @@ int generate_halo_from_mass_function(double *cumulative_mass_function,
   * Return:
   * £ count -> number of the generated subhaloes
   **/
-/*int get_subhaloes_1st_order(mergers_parameters *mergers_params,
+int get_subhaloes_1st_order(mergers_parameters *mergers_params,
                             int order,
                             FILE *file_pointer,
                             //double *M_to_R,
@@ -935,7 +947,7 @@ int generate_halo_from_mass_function(double *cumulative_mass_function,
   return _success_;
 
 }
-*/
+
 
 
 /**
@@ -952,7 +964,6 @@ int generate_halo_from_mass_function(double *cumulative_mass_function,
   * * final_count -> pointer to the number of the generated subhaloes
   **/
 int get_subhaloes(mergers_parameters *mergers_params,
-                  DM_halo_accretion *halo_accretion,
                   FILE *file_pointer,
                   int want_redshift_at_merging,
                   subhalo_mass_functions *SHMF,
@@ -963,44 +974,66 @@ int get_subhaloes(mergers_parameters *mergers_params,
   int i, j;
   int order;
   int int_part, count;
-  double *subhalo_mass_function_total;
-  double *cum_shmf;
-  double *cum_shmf_1st;
+  double *delta_shmf;
+  double *shmf_at_z, *shmf_at_z_plus_dz;
+  double *cum_dshmf, *cum_shmf_1st;
   double max_cumu, frac_part;
   double sub_mass, random, its_parent_mass;
   double redshift_infall, merging_timescale;
   double redshift_infall_lower_limit;
   double redshift_at_merging, age_at_merge, age_at_0;
 
+  dream_call(check_accretion(mergers_params->halo_mass_at_z,
+                              mergers_params->halo_mass_at_z_plus_dz),
+              _mass_accretion_error_message_);
+
   dream_call(double_malloc(mergers_params->length,
-                           &subhalo_mass_function_total),
-             _alloc_error_message_);
-
-  { double this_psi; int index_psi;
-
-    for(i=0; i<mergers_params->length; i++){
-
-      this_psi = pow(10., mergers_params->subhalo_mass_range[i]) / pow(10., mergers_params->halo_mass_at_z0);
-      index_psi = find_index(SHMF->psi, this_psi, SHMF->length_psi);
-
-      *(subhalo_mass_function_total+i) = *(SHMF->total+index_psi);
-    }
-  }
-
-  dream_call(compute_total_haloes_number(subhalo_mass_function_total,
-                                         mergers_params->subhalo_mass_range,
-                                         mergers_params->length,
-                                         &count),
-             _haloes_number_error_message_);
-
-   dream_call(double_calloc(mergers_params->length,
-                            &cum_shmf),
+                            &shmf_at_z),
               _alloc_error_message_);
 
-   dream_call(cumsum(subhalo_mass_function_total,
+  dream_call(double_malloc(mergers_params->length,
+                            &shmf_at_z_plus_dz),
+              _alloc_error_message_);
+
+  dream_call(double_malloc(mergers_params->length,
+                            &delta_shmf),
+              _alloc_error_message_);
+
+  dream_call(vdB_USHMF(params_jiang_vdb_total_unevolved,
+                        mergers_params->halo_mass_at_z,
+                        mergers_params->subhalo_mass_range,
+                        mergers_params->length,
+                        &shmf_at_z),
+              _mass_function_error_message_);
+
+  dream_call(vdB_USHMF(params_jiang_vdb_total_unevolved,
+                        mergers_params->halo_mass_at_z_plus_dz,
+                        mergers_params->subhalo_mass_range,
+                        mergers_params->length,
+                        &shmf_at_z_plus_dz),
+              _mass_function_error_message_);
+
+  //delta SHMF at M_host(z=z) [N]
+  dream_call(compute_delta_mass_function(mergers_params->length,
+                                          &shmf_at_z,
+                                          &shmf_at_z_plus_dz,
+                                          mergers_params->subhalo_mass_bin,
+                                          &delta_shmf),
+              _delta_mass_func_error_message_);
+
+  dream_call(double_calloc(mergers_params->length,
+                            &cum_dshmf),
+              _alloc_error_message_);
+
+  dream_call(cumsum(delta_shmf,
                      mergers_params->length,
-                     &cum_shmf),
-              _cumsum_error_message_); //Cumulative SHMF
+                     &cum_dshmf),
+              _cumsum_error_message_); //Cumulative delta-SHMF
+
+  dream_call(compute_total_haloes_number(delta_shmf,
+                                          mergers_params->length,
+                                          &count),
+              _haloes_number_error_message_);
 
   dream_call(double_calloc(mergers_params->length,
                             &cum_shmf_1st),
@@ -1018,13 +1051,63 @@ int get_subhaloes(mergers_parameters *mergers_params,
 
   int count_unwanted_orders = 0;
 
+
+
+
+  /*****************************************/
+  /*double try_sub_mass[count];
+  double mass_sum, delta_mass;
+  int times = 0, times_threshold=20;
+  delta_mass = pow(10., mergers_params->halo_mass_at_z) - pow(10., mergers_params->halo_mass_at_z_plus_dz);
+  do {
+    mass_sum = 0.;
+    for (i=0; i<count; i++){
+      dream_call(generate_halo_from_mass_function(cum_dshmf,
+                                                   mergers_params->subhalo_mass_range,
+                                                   mergers_params->length,
+                                                   &try_sub_mass[i]),
+                  _mass_from_pdf_error_message_);
+      mass_sum += pow(10., try_sub_mass[i]);
+      //printf("%lf\n", try_sub_mass[i]);
+    }
+    times += 1;
+    printf("%lf %lf %lf %lf\n", mergers_params->redshift, log10(mass_sum), log10(delta_mass), mergers_params->halo_mass_at_z0);
+  } while ((mass_sum > delta_mass) && (times < times_threshold));
+
+  if (times >= times_threshold){
+    int loop_to_be_repeated;
+    double available_mass;
+    do {
+      loop_to_be_repeated = _False_;
+      available_mass = pow(10., mergers_params->halo_mass_at_z) - pow(10., mergers_params->halo_mass_at_z_plus_dz);
+      for (i=0; i<count; i++){
+        //printf("starting %d %d %lf %lf\n", i, count, log10(available_mass), mergers_params->subhalo_mass_range[0]);
+        if (available_mass<pow(10., mergers_params->subhalo_mass_range[0])){
+          loop_to_be_repeated = _True_;
+          break;
+        }
+        do {
+          dream_call(generate_halo_from_mass_function(cum_dshmf,
+                                                       mergers_params->subhalo_mass_range,
+                                                       mergers_params->length,
+                                                       &try_sub_mass[i]),
+                      _mass_from_pdf_error_message_);
+        } while (pow(10.,try_sub_mass[i]) >= available_mass);
+        available_mass -= pow(10., try_sub_mass[i]);
+        //printf("finished %d %lf %lf\n", i, log10(available_mass), try_sub_mass[i]);
+      }
+    } while (loop_to_be_repeated==_True_);
+  }*/
+  /*****************************************/
+
   for (i=0; i<count; i++){
 
-    dream_call(generate_halo_from_mass_function(cum_shmf,
-                                                mergers_params->subhalo_mass_range,
-                                                mergers_params->length,
-                                                &sub_mass),
-               _mass_from_pdf_error_message_);
+    dream_call(generate_halo_from_mass_function(cum_dshmf,
+                                                 mergers_params->subhalo_mass_range,
+                                                 mergers_params->length,
+                                                 &sub_mass),
+                _mass_from_pdf_error_message_);
+    //sub_mass = try_sub_mass[i]; /******************************/
 
     dream_call(assign_subhalo_order(mergers_params->max_order,
                                      sub_mass,
@@ -1034,21 +1117,8 @@ int get_subhaloes(mergers_parameters *mergers_params,
 
     if (order == 1) {
 
-      double dphi, dz;
-      double z_array[halo_accretion->length-1], PDFz[halo_accretion->length-1];
-
-      for (j=0; j<halo_accretion->length-1; j++){
-
-        dphi = linear_interp(pow(10.,sub_mass)/pow(10.,halo_accretion->track[j]), SHMF->psi, SHMF->first, SHMF->length_psi) - \
-                linear_interp(pow(10.,sub_mass)/pow(10.,halo_accretion->track[j+1]) , SHMF->psi, SHMF->first, SHMF->length_psi);
-        dz = *(halo_accretion->redshift+j+1) - (*(halo_accretion->redshift+j));
-
-        *(PDFz+j) = dphi / dz;
-        *(z_array+j) = 0.5 * ( *(halo_accretion->redshift+j) + (*(halo_accretion->redshift+j+1)) );
-
-      }
-
-      redshift_infall = get_random_from_distribution(z_array, PDFz, halo_accretion->length-1);
+      redshift_infall = get_random_uniform(mergers_params->redshift, \
+                       mergers_params->redshift + mergers_params->redshift_bin);
 
       dream_call(compute_merging_timescale(mergers_params->halo_mass_at_z,
                                             sub_mass,
@@ -1116,10 +1186,16 @@ int get_subhaloes(mergers_parameters *mergers_params,
     }
   }
 
-  dream_call(dealloc(subhalo_mass_function_total),
-             _dealloc_error_message_);
+  dream_call(dealloc(shmf_at_z),
+              _dealloc_error_message_);
 
-  dream_call(dealloc(cum_shmf),
+  dream_call(dealloc(shmf_at_z_plus_dz),
+              _dealloc_error_message_);
+
+  dream_call(dealloc(delta_shmf),
+              _dealloc_error_message_);
+
+  dream_call(dealloc(cum_dshmf),
               _dealloc_error_message_);
 
   dream_call(dealloc(cum_shmf_1st),
@@ -1153,7 +1229,9 @@ int get_subhaloes(mergers_parameters *mergers_params,
   * £ Num_mergers -> number of the generated subhaloes
   **/
 int generate_mergers(mergers_parameters *mergers_params,
-                     DM_halo_accretion *halo_accretion,
+                     double *track,
+                     double *z_range,
+                     int len_track,
                      int use_merger_tree,
                      cosmological_parameters *cosmo_params,
                      char *output_folder,
@@ -1164,8 +1242,6 @@ int generate_mergers(mergers_parameters *mergers_params,
 
   int i, N, Num_mergers;
   FILE *file_pointer;
-
-  //int j; for (j=0; j<len_track-1; j++){printf("%lf\n", z_range[j]);}
 
   char filename[24] = "data/output_mergers.txt";
   const size_t len1 = strlen(output_folder);
@@ -1181,15 +1257,15 @@ int generate_mergers(mergers_parameters *mergers_params,
 
   file_pointer = fopen(output_filename, "a");
 
-  //Num_mergers = 0;
+  Num_mergers = 0;
 
-  /*for (i=0; i<len_track-1; i++){
+  for (i=0; i<len_track-1; i++){
 
     mergers_params->halo_mass_at_z = *(track+i);
     mergers_params->halo_mass_at_z_plus_dz = *(track+i+1);
-    mergers_params->redshift = *(z_range+i);*/
+    mergers_params->redshift = *(z_range+i);
 
-    /*N = 0;
+    N = 0;
 
     if (use_merger_tree == 1) {
 
@@ -1207,23 +1283,22 @@ int generate_mergers(mergers_parameters *mergers_params,
 
       Num_mergers += N;
 
-    } else if (use_merger_tree == 0) {*/
+    } else if (use_merger_tree == 0) {
 
       dream_call(get_subhaloes(mergers_params,
-                               halo_accretion,
-                               file_pointer,
+                                file_pointer,
                                 want_redshift_at_merging,
                                 SHMF,
                                 cosmo_params,
                                 cosmo_time,
-                                &Num_mergers),
+                                &N),
                   _get_subhaloes_error_message_);
 
-    /*  Num_mergers += N;
+      Num_mergers += N;
 
-    }*/
+    }
 
-  //}
+  }
 
   fclose(file_pointer);
 

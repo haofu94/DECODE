@@ -44,9 +44,7 @@ centrals.get_halo_IDs.argtypes = [c_int, c_int, c_int]
 
 mergers = CDLL("dream/C_functions/dark_matter/mergers.so")
 mergers.generate_mergers.argtypes = [POINTER(mergers_parameters),
-                                     ndpointer(np.float64, flags="C_CONTIGUOUS"),
-                                     ndpointer(np.float64, flags="C_CONTIGUOUS"),
-                                     c_int,
+                                     POINTER(DM_halo_accretion),
                                      c_int,
                                      POINTER(cosmological_parameters),
                                      #ndpointer(np.float64, flags="C_CONTIGUOUS"),
@@ -163,7 +161,7 @@ def DREAM_track(halo_catalog,
     # get sub halo mass functions
     Params = [0.22, -0.91, 6., 3., 1.] #Jiang \& van den Bosch 2016 Table A1, Unevolved, total
     Params_1st_order = [0.13, -0.83, 1.33, -0.02, 5.67, 1.19]
-    psi = 10**np.arange(8, Mhalo_MAX, subhalo_mass_bin) / 10**Mhalo_MAX
+    psi = 10**np.arange(Mhalo_MIN, Mhalo_MAX, subhalo_mass_bin) / 10**Mhalo_MAX
     shmf_all = vdB_USHMF(Params, Mhalo_MAX, np.arange(Mhalo_MIN, Mhalo_MAX, subhalo_mass_bin))
     shmf_1st = vdB_USHMF_1st_order(Params_1st_order, Mhalo_MAX, np.arange(Mhalo_MIN, Mhalo_MAX, subhalo_mass_bin))
     shmf_2nd = vdB_USHMF_ith_order(Params_1st_order, Mhalo_MAX, np.arange(Mhalo_MIN, Mhalo_MAX, subhalo_mass_bin), 2)
@@ -202,6 +200,9 @@ def DREAM_track(halo_catalog,
         elif not input_params_run.use_mean_track:
             track = accretion_tracks[i]
 
+        halo_accretion = [track, input_params_run.z_range, track.size]
+        halo_accretion = DM_halo_accretion(*halo_accretion)
+
         #mergers_params.id = id_list[i]
         #mergers_params.halo_mass_at_z0 = track[0]
 
@@ -214,9 +215,7 @@ def DREAM_track(halo_catalog,
 
 
         N = mergers.generate_mergers(mergers_params,
-                                     track,
-                                     input_params_run.z_range,
-                                     track.size,
+                                     halo_accretion,
                                      input_params_run.use_merger_tree,
                                      cosmo_params,
                                      #M_to_R(10**track, z_range, 'vir'),

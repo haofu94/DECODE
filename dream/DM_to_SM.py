@@ -101,6 +101,7 @@ def SMHM_Behroozi_2013(DarkMatter, z, Scatter):
     Part3 = f(0)
 
     M_Star = Part1 + Part2 - Part3
+
     if Scatter!=0.:
         Scatter = np.random.normal(scale = Scatter, size = np.shape(M_Star))
         return M_Star + Scatter
@@ -157,7 +158,11 @@ def SMHM_matrix(DM, matrix, z_array, z, scatter):
 
 
 
-def SMHM_matrix_v2(DM, matrix, z_array, z, scatter):
+def SMHM_matrix_v2(M_input, matrix, z_array, z, scatter, inverse=False):
+
+    # if inverse==True, the function calculates and returns the Mhalo(Mstar)
+    # and the scatter will be assumed in Mhalo at fixed Mstar
+    # Default: inverse=False, the function calculates Mstar(Mhalo)
 
     Mstar = matrix[:,-1]
 
@@ -165,6 +170,29 @@ def SMHM_matrix_v2(DM, matrix, z_array, z, scatter):
 
     Mhalo = matrix[:,idx]
 
-    SM = interp1d(Mhalo, Mstar, fill_value="extrapolate")(DM) + np.random.normal(0, scatter)
+    if inverse==False:
+        M_output = interp1d(Mhalo, Mstar, fill_value="extrapolate")(M_input) + np.random.normal(0, scatter)
+    elif inverse==True:
+        M_output = interp1d(Mstar, Mhalo, fill_value="extrapolate")(M_input) + np.random.normal(0, scatter)
 
-    return SM
+    return M_output
+
+
+
+def compute_Mhalo_of_Mstar_for_Model(Mstar, z, Model):
+
+    if Model == "Model_1":
+        filename = "Data/SMHM_relations/SMHM_constant_sigma.txt"
+    if Model == "Model_2":
+        filename = "Data/SMHM_relations/SMHM_Tomczak_extrapolated.txt"
+    if Model == "Grylls":
+        filename = "Data/SMHM_relations/SMHM_Grylls_extrapolated.txt"
+    if Model == "B19":
+        filename = "Data/SMHM_relations/SMHM_Behroozi_2019_extrapolated.txt"
+    if Model == "M18":
+        filename = "Data/SMHM_relations/SMHM_Moster_2018_extrapolated_v2.txt"
+
+    z_array = np.loadtxt(filename, skiprows=1, max_rows=1)[:-1]
+    matrix = np.loadtxt(filename, skiprows=2)
+
+    return SMHM_matrix_v2(Mstar, matrix, z_array, z, 0., True)

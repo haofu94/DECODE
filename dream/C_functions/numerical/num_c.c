@@ -10,8 +10,9 @@
 # define num_c
 
 
-#include "../include/dream.h"
+#include <time.h>
 
+#include "../include/dream.h"
 
 
 int find_index(double *array,
@@ -361,6 +362,8 @@ double get_random_uniform(double min,
   **/
 
   double num;
+  //srand(time(NULL));
+  //srand(0);
   num = ((double)rand() / (double)RAND_MAX);
   num = num * (max-min) + min;
   return num;
@@ -440,6 +443,31 @@ double get_random_gaussian(double mean,
   free(gauss); gauss = NULL;
 
   return num;
+}
+
+
+
+double get_random_from_distribution(double *x, double *PDFx, int len){
+
+  /**
+    * Returns a random number with the given probability distribution
+  **/
+
+  double num;
+  double *cumu;
+  cumu = (double *)calloc(len, sizeof(double));
+
+  dream_call(cumsum(PDFx,
+                    len,
+                    &cumu),
+              _cumsum_error_message_);
+
+  double low = min(cumu, len);
+  double high = max(cumu, len);
+  num = linear_interp(get_random_uniform(low, high), cumu, x, len);
+
+  return num;
+
 }
 
 
