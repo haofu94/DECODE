@@ -61,6 +61,6 @@ def generate_parents_catalogue(input_params_run, h):
 
     #my_mhalo = compute_Mhalo_of_Mstar_for_Model(12, 0., "Grylls") #14.630256589128756
     #mass_catalog = np.random.uniform(my_mhalo, my_mhalo+0.1, 1000)
-    mass_catalog = np.random.uniform(13, 13.05, 500)
+    #mass_catalog = np.random.uniform(13, 13.05, 500)
 
     return mass_catalog
