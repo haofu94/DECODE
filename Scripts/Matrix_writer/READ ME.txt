@@ -1,0 +1,24 @@
+writematrix(SMF,sigma,z_range,title,M_hforsigma=None)
+
+Saves a .txt file containing a matrix of SMHM relationships varying with redshift for DREAM
+to use.
+
+	SMF:		2D array
+			Array containing stellar mass in units of log10(M/Msun) in the first
+			row, and galaxy number densities in units of Mpc^-3 dex^-1 in the
+			following rows. If the stellar mass function is invarient with
+			redshift, SMF will have shape (2,N). If the stellar mass function
+			evolves with redshift, SMF will have shape (z_range.size+1,N).
+	sigma:		float, 1D array, 2D array
+			Stellar mass function scatter. If constant, sigma will be a float. If
+			dependent on redshift, sigma will have shape (z_range.size,). If
+			dependent on halo mass, sigma will have shape (1,M_hforsigma.size).
+			If dependent on both redshift and halo mass, sigma will have shape
+			(z_range.size,M_hforsigma.size).
+	z_range:	1D array
+			Redshift values each SMHM relationship will be calculated at.
+	title:		string
+			Title of output file.
+	M_hforsigma:	1D array
+			Halo mass values in units of log10(M/Msun) if sigma is dependent on
+			halo mass.
