@@ -90,13 +90,16 @@ int compute_accretion_from_mergers(DM_catalogue *reduced_catalog,
                                             SMHM, smhm_data, *(reduced_catalog->z_infall+j), &merged_stellar_mass_at_z),
                     _SMHM_error_message_);
 
-        *(*merged_stellar_mass+i) += pow(10., merged_stellar_mass_at_z);
+        *(*merged_stellar_mass+i) += pow(10., merged_stellar_mass_at_z)*0.61;
 
       }
 
     }
 
+    //printf("%lf %lf\n", z[i], *(*merged_stellar_mass+i) / ((double)reduced_catalog->len_parents));
     *(*merged_stellar_mass+i) = log10(*(*merged_stellar_mass+i) / ((double)reduced_catalog->len_parents));
+    //printf("%lf %lf\n", z[i], *(*merged_stellar_mass+i));
+    //printf("%d %lf %lf\n", reduced_catalog->len_parents, z[i], *(*merged_stellar_mass+i));
 
   }
 
@@ -291,7 +294,7 @@ void compute_star_formation(stellar_mass_halo_mass *SMHM,
 
   //SMHM->scatter = 0.; //set scatter back to 0
 
-  z_bin = 0.1;
+  z_bin = 0.001;
   double z_MAX = 6.;
   len_z = (int)(z_MAX/z_bin);
 
@@ -308,7 +311,7 @@ void compute_star_formation(stellar_mass_halo_mass *SMHM,
     *(lookback_time+i) = linear_interp(*(z+i), cosmo_time->redshift, cosmo_time->lookback_time, cosmo_time->length);
   }
 
-  double stellar_mass_MIN = 11.; //default 6.
+  double stellar_mass_MIN = 10.; //default 6.
   double stellar_mass_MAX = 12.2; //default 12.5
   len_stellar_masses_for_SFR = (int)((stellar_mass_MAX - stellar_mass_MIN) / 0.1);
 
@@ -434,6 +437,7 @@ void compute_star_formation(stellar_mass_halo_mass *SMHM,
                                           SMHM, smhm_data,
                                           z, len_z, &(*(Mstar_track+i))),
                _Mhalo_track_to_Mstar_track_error_message_);
+               //int w; for (w=0; w<len_z; w++){printf("%lf %lf\n", Mhalo_track[w], Mstar_track[i][w]);}
                //SMHM->scatter = 0.11;
 
     int *id_mergers_idx_sat;
@@ -508,11 +512,15 @@ void compute_star_formation(stellar_mass_halo_mass *SMHM,
 
     //printf(" -> Computed mergers for log(Mstar/Msun) = %lf\n\n", m);
 
-    dream_call(double_malloc(len_z, &(*(stellar_mass+i))),
+    dream_call(double_calloc(len_z, &(*(stellar_mass+i))),
                _alloc_error_message_);
 
     for(j=0; j<len_z; j++){
-      *(*(stellar_mass+i)+j) = pow(10., *(*(Mstar_track+i)+j)) - pow(10., *(*(merged_stellar_mass+i)+j));
+      if ( (pow(10., *(*(Mstar_track+i)+j)) - pow(10., *(*(merged_stellar_mass+i)+j))) > 0. ) {
+        *(*(stellar_mass+i)+j) = pow(10., *(*(Mstar_track+i)+j)) - pow(10., *(*(merged_stellar_mass+i)+j));
+      }
+      //printf("%lf %lf %lf %lf\n", z[j], *(*(Mstar_track+i)+j), *(*(merged_stellar_mass+i)+j), log10(*(*(stellar_mass+i)+j)));
+      //printf("%lf %lf %lf %lf\n", z[j], Mstar_track[i][j], merged_stellar_mass[i][j], log10(stellar_mass[i][j]));
     }
 
     dream_call(double_calloc(len_z, &(*(star_formation_rate+i))),

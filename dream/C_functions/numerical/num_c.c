@@ -449,24 +449,74 @@ double get_random_gaussian(double mean,
 
 double get_random_from_distribution(double *x, double *PDFx, int len){
 
+  // get_random_from_distribution(z_array, PDFz, halo_accretion->length-1);
+  //int i; for(i=0; i<len; i++) { printf("%d %lf %lf\n", i, x[i], PDFx[i]); }
   /**
     * Returns a random number with the given probability distribution
   **/
 
   double num;
-  double *cumu;
-  cumu = (double *)calloc(len, sizeof(double));
+
+  double *cumu_pdf;
+  cumu_pdf = (double *)calloc(len, sizeof(double));
 
   dream_call(cumsum(PDFx,
                     len,
-                    &cumu),
+                    &cumu_pdf),
               _cumsum_error_message_);
 
-  double low = min(cumu, len);
-  double high = max(cumu, len);
-  num = linear_interp(get_random_uniform(low, high), cumu, x, len);
+  double low = min(cumu_pdf, len);
+  double high = max(cumu_pdf, len);
+  num = linear_interp(get_random_uniform(low, high), cumu_pdf, x, len);
+
+  free(cumu_pdf); cumu_pdf=NULL;
 
   return num;
+
+}
+
+
+
+int compute_histogram(double *data, int len_data, double *bins, int len_bins, double **histogram){
+
+  /**
+    * Inputs
+    * histogram: array to write histogram on, must be of lenght len_bins-1
+    *
+    * Returns the histogram of data
+    **/
+
+  int i, j;
+
+  for (i=0; i<len_bins-1; i++){
+
+    *(*histogram+i) = 0.;
+
+    if (i == len_bins-2) {
+
+      for (j=0; j<len_data; j++){
+
+        if ( (bins[i] <= data[j]) && (data[j] <= bins[i+1]) ){
+          *(*histogram+i) += 1.;
+        }
+
+      }
+
+    } else {
+
+      for (j=0; j<len_data; j++){
+
+        if ( (bins[i] <= data[j]) && (data[j] < bins[i+1]) ){
+          *(*histogram+i) += 1.;
+        }
+
+      }
+
+    }
+
+  }
+
+  return _success_;
 
 }
 
@@ -571,6 +621,19 @@ int load_data(int halo_type,
       fgets(line,max_line_length, file_pointer);
       if ((line[0] != '#') && (line[0] != '\n')){
         sscanf(line, "%lf %lf %lf %lf %lf %lf", &data_trial[0], &data_trial[1], &data_trial[2], &data_trial[3], &data_trial[4], &data_trial[5]);
+        *(*data+j) = (*(data_trial+column));
+        j += 1;
+      }
+      if (j==len){
+        break;
+      }
+    }
+  } else if (Num_columns == 7){
+    j = 0;
+    for (i=0; i<len+skiprows; i++){
+      fgets(line,max_line_length, file_pointer);
+      if ((line[0] != '#') && (line[0] != '\n')){
+        sscanf(line, "%lf %lf %lf %lf %lf %lf %lf", &data_trial[0], &data_trial[1], &data_trial[2], &data_trial[3], &data_trial[4], &data_trial[5], &data_trial[6]);
         *(*data+j) = (*(data_trial+column));
         j += 1;
       }
@@ -696,6 +759,19 @@ double *read_data(int halo_type,
       fgets(line,max_line_length, file_pointer);
       if ((line[0] != '#') && (line[0] != '\n')){
         sscanf(line, "%lf %lf %lf %lf %lf %lf", &data_trial[0], &data_trial[1], &data_trial[2], &data_trial[3], &data_trial[4], &data_trial[5]);
+        *(data+j) = (*(data_trial+column));
+        j += 1;
+      }
+      if (j==len){
+        break;
+      }
+    }
+  } else if (Num_columns == 7){
+    j = 0;
+    for (i=0; i<len+skiprows; i++){
+      fgets(line,max_line_length, file_pointer);
+      if ((line[0] != '#') && (line[0] != '\n')){
+        sscanf(line, "%lf %lf %lf %lf %lf %lf %lf", &data_trial[0], &data_trial[1], &data_trial[2], &data_trial[3], &data_trial[4], &data_trial[5], &data_trial[6]);
         *(data+j) = (*(data_trial+column));
         j += 1;
       }

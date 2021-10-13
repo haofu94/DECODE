@@ -10,6 +10,7 @@ computation of the accretion history of dark matter haloes.
 
 import numpy as np
 from scipy import interpolate
+import sys
 
 
 try:
@@ -154,3 +155,32 @@ def get_mean_halo_growths(mass_params, z_range):
         mean_halo_tracks["mass_track"].append(Mass_acc_history_VDB_FS(mean_mass, z_range, Cosmo.h, Cosmo.Ob0))
 
     return mean_halo_tracks
+
+
+
+def MAH_Hearin_2021(halo_mass_t0, cosmic_t):
+
+    """
+    MEAN dark matter halo mass assembly history
+    Parametrization from Hearin et al. 2021, equation (1)
+    Inputs:
+    - halo_mass_t0: halo mass at t0 [log10(M/Msun)]
+    - cosmic_t: cosmic time array [Gyr]
+    Output:
+    - mass assembly history array [log10(M/Msun)]
+    """
+
+    #U_a_early = 2.5
+    #U_a_early_late = 0.3
+    #log10tau_c = 1.25
+
+    k = 3.5
+
+    a_late_early = 2.5-0.3 #np.log( np.power(np.e, U_a_early_late) + 1. )
+    a_early = 2.5 #np.log( np.power(np.e, U_a_early) + 1. )
+    tau_c = 1.25 #np.power(10., log10tau_c)
+    alpha = a_early + a_late_early / (1. + np.exp(-k*(cosmic_t - tau_c)) )
+
+    MAH = np.log10( 10.**halo_mass_t0 * np.power(cosmic_t / Cosmo.age(0), alpha) )
+
+    return MAH

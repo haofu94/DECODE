@@ -12,6 +12,7 @@ from scipy.integrate import trapz
 from colossus.halo.mass_so import M_to_R
 from colossus.cosmology import cosmology
 
+from halo_growth import Mass_acc_history_VDB_FS as VDB
 
 Cosmo = cosmology.getCurrent()
 h = Cosmo.h
@@ -89,7 +90,7 @@ def tau_merge(central_mass, sub_mass, fudge, z):
         #x = 1./MassRatio; m = 4.032021; a = 0.03724761
         #fudge = m*(np.log10(x+a) -np.log10(a))
         fudge = 0.00035035 * (MassRatio - 1.) + 0.65
-        
+
     Tdyn = fudge*Tdyn
 
     NormalRnd = 0.5 #We are considering only avarage halos on circular orbits
@@ -104,10 +105,16 @@ def tau_merge(central_mass, sub_mass, fudge, z):
     return Tdyn*A*(Part1/Part2)*Part3*Part4 #returns a timescale of infall [Gyr]
 
 
-def get_fs(M,z):
+def get_fs(M):
     """
     Function that calculates fs for first order subhalos, according to Jiang & van den Bosch 2016 Eq. (19)
+
+    M: log10(Mparent(z=0))
     """
+
+    z = np.arange(0,20,0.1)
+    M = VDB(M, z, Cosmo.h, Cosmo.Om0)
+
     M = 10.**M
     M_half = M[0]/2.
 

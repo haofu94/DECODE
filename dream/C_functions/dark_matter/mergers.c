@@ -6,6 +6,10 @@
   **/
 
 
+#ifndef dm_mergers
+# define dm_mergers
+
+
 #include "../include/dream.h"
 
 #include "centrals.c"
@@ -162,23 +166,28 @@ int compute_analytical_redshift_PDF(double *redshift_pdf_range,
 
   if ((subhalo_order == 2) && (subhalo_mass < 11.)) {
 
-    A = 17.59386; beta = 1.25453; delta = 13.06571; gamma = 2.27080; alpha = 1.39963;
+    //A = 17.59386; beta = 1.25453; delta = 13.06571; gamma = 2.27080; alpha = 1.39963;
+    A = 10.05658; beta = 1.06991; delta = 13.78276; gamma = 1.85808; alpha = 1.76572;
 
   } else if ((subhalo_order == 2) && (11. <= subhalo_mass) && (subhalo_mass < 12.)) {
 
-    A = 23.86118; beta = 1.64827; delta = 9.47616; gamma = 0.69930; alpha = 1.39298;
+    //A = 23.86118; beta = 1.64827; delta = 9.47616; gamma = 0.69930; alpha = 1.39298;
+    A = 24.92779; beta = 1.76825; delta = 8.86702; gamma = 0.42264; alpha = 1.93852;
 
   } else if ((subhalo_order == 2) && (12. <= subhalo_mass)) {
 
-    A = 22.32932; beta = 2.40317; delta = 2.97333; gamma = -4.17881; alpha = 1.19073;
+    //A = 22.32932; beta = 2.40317; delta = 2.97333; gamma = -4.17881; alpha = 1.19073;
+    A = 24.80613; beta = 2.67003; delta = 2.30625; gamma = -2.59638; alpha = 1.85692;
 
   } else if ((subhalo_order >= 3) && (subhalo_mass < 11.)) {
 
-    A = 23.26552; beta = 1.66035; delta = 11.89017; gamma = 1.24507; alpha = 2.32610;
+    //A = 23.26552; beta = 1.66035; delta = 11.89017; gamma = 1.24507; alpha = 2.32610;
+    A = 8.37148; beta = 1.49595; delta = 13.49528; gamma = 2.99628; alpha = 3.28954;
 
   } else if ((subhalo_order >= 3) && (11. <= subhalo_mass)) {
 
-    A = 24.47686; beta = 2.20970; delta = 4.40460; gamma = -2.77968; alpha = 2.06852;
+    //A = 24.47686; beta = 2.20970; delta = 4.40460; gamma = -2.77968; alpha = 2.06852;
+    A = 23.71313; beta = 2.54297; delta = 3.40928; gamma = -3.56339; alpha = 3.12188;
 
   }
 
@@ -470,6 +479,8 @@ int assign_subhalo_order(int max_order,
     }
   }
 
+  //*order = 1; /////////////////// DELETE THIS
+
   return _success_;
 }
 
@@ -508,6 +519,8 @@ int compute_dynamical_timescale(double redshift,
 
   Om = linear_interp(redshift, cosmo_params->z, cosmo_params->Om, cosmo_params->length);
   Hz = linear_interp(redshift, cosmo_params->z, cosmo_params->Hz, cosmo_params->length);
+
+  //printf("%lf %lf %lf\n", redshift, Om, Hz);
 
   *tau_dyn = 1.628 / cosmo_params->h / sqrt(Delta_vir(redshift, Om)/178.) * (cosmo_params->H0 / Hz);
 
@@ -613,17 +626,16 @@ int compute_merging_timescale(double parent_mass,
 
   mass_ratio = pow(10., parent_mass - subhalo_mass);
 
+  //printf("%lf %lf %lf\n", parent_mass, subhalo_mass, mergers_params->fudge);
+
   dream_call(compute_dynamical_timescale(z,
                                           cosmo_params,
                                           &dynamical_friction),
               _dynamical_timescale_error_message_); //[Gyr]
+              //printf("%lf %lf\n", z, dynamical_friction);
 
   if (mergers_params->fudge<0.){
 
-    // linear relation on mass ratio
-    /*double fudge1 = 0.65; //alti psi
-    double fudge2 = 1.; //bassi psi
-    fudge = (mass_ratio - 1.) / (1. - 1000.) * (fudge1 - fudge2) + fudge1;*/
     fudge = 0.00035035 * (mass_ratio - 1.) + 0.65;
 
   } else if (mergers_params->fudge>=0.) {
@@ -738,13 +750,16 @@ int generate_halo_from_mass_function(double *cumulative_mass_function,
   * Return:
   * £ count -> number of the generated subhaloes
   **/
-/*int get_subhaloes_1st_order(mergers_parameters *mergers_params,
+int get_subhaloes_1st_order(mergers_parameters *mergers_params,
+                            double main_progenitor,
+                            double parent_halo_mass,
+                            double *z_track,
+                            double *track,
+                            int len_track,
                             int order,
                             FILE *file_pointer,
-                            //double *M_to_R,
-                            double *z_array,
-                            int len_track,
                             int want_redshift_at_merging,
+                            subhalo_mass_functions *SHMF,
                             cosmological_parameters *cosmo_params,
                             struct cosmological_time *cosmo_time,
                             int *final_count) {
@@ -757,7 +772,7 @@ int generate_halo_from_mass_function(double *cumulative_mass_function,
   int i, j, N;
   double *delta_shmf;
   double *shmf, *shmf2;
-  double *cum_dshmf;
+  double *cum_shmf;
   double max_cumu;
   double frac_part;
   double sub_mass;
@@ -767,158 +782,131 @@ int generate_halo_from_mass_function(double *cumulative_mass_function,
   double high;
   double redshift_infall;
   double merging_timescale;
-  //double M_to_R_at_this_z;
 
   int len_merger_track;
   double *redshift_for_merger_track;
   double *this_merger_track;
-  //double *M_to_R_for_merger_track;
 
-  //Check that the mass of the halo at z is higher than at z+dz
-  dream_call(check_accretion(mergers_params->halo_mass_at_z, mergers_params->halo_mass_at_z_plus_dz), _mass_accretion_error_message_);
-
-  //Choose the sHMF, default: total
-  //double Params[5] = {0.22, -0.91, 6., 3., 1.}; //Jiang & van den Bosch 2016 Table A1, Unevolved, total
   double Params[6] = {0.13, -0.83, 1.33, -0.02, 5.67, 1.19}; //Jiang & van den Bosch 2016 Eq. (14), Unevolved, 1st order
 
-  dream_call(double_malloc(mergers_params->length, &shmf), _alloc_error_message_);
-  dream_call(double_malloc(mergers_params->length, &shmf2), _alloc_error_message_);
-  dream_call(double_malloc(mergers_params->length, &delta_shmf), _alloc_error_message_);
+  double res = -4.;
+  int len_range = (int)((parent_halo_mass - main_progenitor - res) / 0.1);
 
-  dream_call(vdB_USHMF_1st_order(Params, mergers_params->halo_mass_at_z, mergers_params->subhalo_mass_range, mergers_params->length, &shmf), _mass_function_error_message_);
-  dream_call(vdB_USHMF_1st_order(Params, mergers_params->halo_mass_at_z_plus_dz, mergers_params->subhalo_mass_range, mergers_params->length, &shmf2), _mass_function_error_message_);
+  double *subhalo_mass_range;
 
-  //delta sHMF at M_host(z=z)
-  for (i=0; i<mergers_params->length; i++){
-    *(delta_shmf+i) = ( (*(shmf+i)) - (*(shmf2+i)) ) * mergers_params->subhalo_mass_bin; //[N]
+  dream_call(double_malloc(len_range,
+                           &subhalo_mass_range),
+             _alloc_error_message_);
+
+  dream_call(arange(main_progenitor+res,
+                    parent_halo_mass,
+                    0.1, len_range,
+                    &subhalo_mass_range),
+             _arange_error_message);
+
+  double *shmf_1st;
+  dream_call(double_malloc(len_range, &shmf_1st),
+             _alloc_error_message_);
+
+  { double this_psi; int index_psi;
+    for(i=0; i<len_range; i++){
+      this_psi = pow(10., subhalo_mass_range[i]) / pow(10., track[0]);
+      index_psi = find_index(SHMF->psi, this_psi, SHMF->length_psi);
+      shmf_1st[i] = *(SHMF->first+index_psi);
+    }
   }
 
-  dream_call(double_calloc(mergers_params->length, &cum_dshmf), _alloc_error_message_);
+  dream_call(double_calloc(len_range, &cum_shmf),
+             _alloc_error_message_);
 
-  dream_call(cumsum(delta_shmf, mergers_params->length, &cum_dshmf), _cumsum_error_message_); //Cumulative dshmf
+  dream_call(cumsum(shmf_1st, len_range, &cum_shmf),
+             _cumsum_error_message_); //Cumulative dshmf
 
-  dream_call(dealloc(shmf), _dealloc_error_message_);
-  dream_call(dealloc(shmf2), _dealloc_error_message_);
-  dream_call(dealloc(delta_shmf), _dealloc_error_message_);
-
-  //count = compute_total_haloes_number(delta_shmf, mergers_params->length);
-  dream_call(compute_total_haloes_number(delta_shmf, mergers_params->length, &count), _haloes_number_error_message_);
+  dream_call(compute_total_haloes_number(shmf_1st, subhalo_mass_range,
+                                         len_range, &count),
+             _haloes_number_error_message_);
 
   count_higher_order = 0;
-
-  //M_to_R_at_this_z = *(M_to_R+find_index(z_array, redshift, len_track));
 
   if (want_redshift_at_merging == _False_) {
 
     for (i=0; i<count; i++){
 
-      dream_call(generate_halo_from_mass_function(cum_dshmf, mergers_params->subhalo_mass_range, mergers_params->length, &sub_mass), _mass_from_pdf_error_message_);
-      redshift_infall = get_random_uniform(mergers_params->redshift, mergers_params->redshift + mergers_params->redshift_bin);
-      //merging_timescale = ging_timescale(halo_mass_at_z, sub_mass, fudge, redshift, h, Om, Hz, H0, M_to_R_at_this_z);
-      dream_call(compute_merging_timescale(mergers_params->halo_mass_at_z, sub_mass, mergers_params->redshift, mergers_params, cosmo_params, &merging_timescale), _merging_timescale_error_message_);
+      dream_call(generate_halo_from_mass_function(cum_shmf, subhalo_mass_range,
+                                                  len_range, &sub_mass),
+                 _mass_from_pdf_error_message_);
 
-      fprintf(file_pointer, "%d %d %lf %lf %.5le\n", mergers_params->id, order, sub_mass, redshift_infall, merging_timescale);
+      double dphi, dz;
+      double z_array[len_track-1], PDFz[len_track-1];
+      double this_psi, this_psi_1;
+      for (j=0; j<len_track-1; j++){
+        this_psi = pow(10.,sub_mass - track[j]);
+        this_psi_1 = pow(10.,sub_mass - track[j+1]);
+        dphi = linear_interp(this_psi, SHMF->psi, SHMF->first, SHMF->length_psi) - \
+                linear_interp(this_psi_1 , SHMF->psi, SHMF->first, SHMF->length_psi);
+        dz = *(z_track+j+1) - (*(z_track+j));
+        if (this_psi < 1.) { *(PDFz+j) = dphi / dz; } else { PDFz[j] = 0.; }
+        *(z_array+j) = 0.5 * ( *(z_track+j) + (*(z_track+j+1)) );
+      }
+      redshift_infall = get_random_from_distribution(z_array, PDFz, len_track-1);
+
+      //fprintf(file_pointer, "%d %d %lf %lf %.5le\n", mergers_params->id, order, sub_mass, redshift_infall, merging_timescale);
+      fprintf(file_pointer, "%d %d %.4lf %.4lf\n", mergers_params->id, order, sub_mass, redshift_infall);
 
 
       if ((order < mergers_params->max_order) && (redshift_infall < mergers_params->redshift_max)) {
 
         len_merger_track = (int)((mergers_params->redshift_max - redshift_infall) / mergers_params->redshift_bin);
-        dream_call(double_calloc(len_merger_track, &redshift_for_merger_track), _alloc_error_message_);
-        dream_call(double_calloc(len_merger_track, &this_merger_track), _alloc_error_message_);
-        //M_to_R_for_merger_track = (double *)calloc(len_merger_track, sizeof(double));
 
-        dream_call(arange(redshift_infall, mergers_params->redshift_max, mergers_params->redshift_bin, len_merger_track, &redshift_for_merger_track), _arange_error_message);
+        if ( ( sub_mass > (main_progenitor+res) ) && (len_merger_track > 0) ) {
 
-        this_merger_track = Mass_acc_history_VDB_(sub_mass, redshift_for_merger_track, cosmo_params->h, cosmo_params->Om0, cosmo_params->Ob0, cosmo_params->sigma8, cosmo_params->ns, len_merger_track);
+          dream_call(double_calloc(len_merger_track,
+                                   &redshift_for_merger_track),
+                     _alloc_error_message_);
 
-        //for (j=0; j<len_merger_track; j++) {
-        //  *(M_to_R_for_merger_track+len_merger_track-1+j) = *(M_to_R+len_merger_track-1+j);
-        //}
+          dream_call(double_calloc(len_merger_track,
+                                   &this_merger_track),
+                     _alloc_error_message_);
 
-        for (j=0; j<len_merger_track-1; j++){
+          dream_call(arange(redshift_infall,
+                            mergers_params->redshift_max,
+                            mergers_params->redshift_bin,
+                            len_merger_track,
+                            &redshift_for_merger_track),
+                     _arange_error_message);
+
+          dream_call(Mass_acc_history_VDB_(sub_mass,
+                                           redshift_for_merger_track,
+                                           cosmo_params->h,
+                                           cosmo_params->Om0,
+                                           cosmo_params->Ob0,
+                                           cosmo_params->sigma8,
+                                           cosmo_params->ns,
+                                           len_merger_track,
+                                           &this_merger_track),
+                     "error\n");
 
           dream_call(get_subhaloes_1st_order(mergers_params,
-                                      order+1,
-                                      file_pointer,
-                                      //M_to_R_for_merger_track,
-                                      redshift_for_merger_track,
-                                      len_merger_track,
-                                      want_redshift_at_merging,
-                                      cosmo_params,
-                                      cosmo_time,
-                                      &N), _get_subhaloes_error_message_);
+                                             main_progenitor,
+                                             sub_mass,
+                                             redshift_for_merger_track,
+                                             this_merger_track,
+                                             len_merger_track,
+                                             order+1,
+                                             file_pointer,
+                                             want_redshift_at_merging,
+                                             SHMF, cosmo_params, cosmo_time, &N),
+                     _get_subhaloes_error_message_);
 
           count_higher_order += N;
 
-        }
+          dream_call(dealloc(redshift_for_merger_track),
+                     _dealloc_error_message_);
 
-        dream_call(dealloc(redshift_for_merger_track), _dealloc_error_message_);
-        dream_call(dealloc(this_merger_track), _dealloc_error_message_);
-        //free(M_to_R_for_merger_track);
-        //M_to_R_for_merger_track = NULL;
-
-      }
-
-    }
-
-  } else if (want_redshift_at_merging == _True_) {
-
-    double redshift_at_merging, age_at_merge;
-    double age_at_0 = linear_interp(0., cosmo_time->redshift, cosmo_time->age, cosmo_time->length);
-
-    for (i=0; i<count; i++){
-
-      dream_call(generate_halo_from_mass_function(cum_dshmf, mergers_params->subhalo_mass_range, mergers_params->length, &sub_mass), _mass_from_pdf_error_message_);
-      redshift_infall = get_random_uniform(mergers_params->redshift, mergers_params->redshift + mergers_params->redshift_bin);
-      //merging_timescale = compute_merging_timescale(halo_mass_at_z, sub_mass, fudge, redshift, h, Om, Hz, H0, M_to_R_at_this_z);
-      dream_call(compute_merging_timescale(mergers_params->halo_mass_at_z, sub_mass, mergers_params->redshift, mergers_params, cosmo_params, &merging_timescale), _merging_timescale_error_message_);
-      age_at_merge = linear_interp(redshift_infall, cosmo_time->redshift, cosmo_time->age, cosmo_time->length) + merging_timescale;
-
-      if (age_at_merge > age_at_0) {
-        redshift_at_merging = -1.;
-      } else if (age_at_merge <= age_at_0) {
-        redshift_at_merging = linear_interp(age_at_merge, cosmo_time->age, cosmo_time->redshift, cosmo_time->length);
-      }
-
-      fprintf(file_pointer, "%d %lf %lf %.5le %lf\n", mergers_params->id, sub_mass, redshift_infall, merging_timescale, redshift_at_merging);
-
-
-      if ((order < mergers_params->max_order) && (redshift_infall < mergers_params->redshift_max)) {
-
-        len_merger_track = (int)((mergers_params->redshift_max - redshift_infall) / mergers_params->redshift_bin);
-        dream_call(double_calloc(len_merger_track, &redshift_for_merger_track), _alloc_error_message_);
-        dream_call(double_calloc(len_merger_track, &this_merger_track), _alloc_error_message_);
-        //M_to_R_for_merger_track = (double *)calloc(len_merger_track, sizeof(double));
-
-        dream_call(arange(redshift_infall, mergers_params->redshift_max, mergers_params->redshift_bin, len_merger_track, &redshift_for_merger_track), _arange_error_message);
-
-        this_merger_track = Mass_acc_history_VDB_(sub_mass, redshift_for_merger_track, cosmo_params->h, cosmo_params->Om0, cosmo_params->Ob0, cosmo_params->sigma8, cosmo_params->ns, len_merger_track);
-
-        //for (j=0; j<len_merger_track; j++) {
-        //  *(M_to_R_for_merger_track+len_merger_track-1+j) = *(M_to_R+len_merger_track-1+j);
-        //}
-
-        for (j=0; j<len_merger_track-1; j++){
-
-          dream_call(get_subhaloes_1st_order(mergers_params,
-                                      order+1,
-                                      file_pointer,
-                                      //M_to_R_for_merger_track,
-                                      redshift_for_merger_track,
-                                      len_merger_track,
-                                      want_redshift_at_merging,
-                                      cosmo_params,
-                                      cosmo_time, &N), _get_subhaloes_error_message_);
-
-          count_higher_order += N;
+          dream_call(dealloc(this_merger_track),
+                     _dealloc_error_message_);
 
         }
-
-        dream_call(dealloc(redshift_for_merger_track), _dealloc_error_message_);
-        dream_call(dealloc(this_merger_track), _dealloc_error_message_);
-        //free(M_to_R_for_merger_track);
-        //M_to_R_for_merger_track = NULL;
-
       }
 
     }
@@ -927,15 +915,21 @@ int generate_halo_from_mass_function(double *cumulative_mass_function,
 
   count += count_higher_order;
 
-  dream_call(dealloc(cum_dshmf), _dealloc_error_message_);
+  dream_call(dealloc(cum_shmf),
+             _dealloc_error_message_);
 
-  //return count;
+  dream_call(dealloc(shmf_1st),
+             _dealloc_error_message_);
+
+  dream_call(dealloc(subhalo_mass_range),
+             _dealloc_error_message_);
+
   *final_count = count;
 
   return _success_;
 
 }
-*/
+
 
 
 /**
@@ -944,6 +938,7 @@ int generate_halo_from_mass_function(double *cumulative_mass_function,
   *
   * Input:
   * @ mergers_params -> parameters for subhaloes catalogue
+  * @ halo_accretion -> dark matter halo accretion track
   * @ file_pointer -> pointer to the file to write
   * @ want_redshift_at_merging -> switch for choosing whether to calculate redshift at merging
   * @ SHMF -> subhalo mass functions
@@ -967,154 +962,202 @@ int get_subhaloes(mergers_parameters *mergers_params,
   double *cum_shmf;
   double *cum_shmf_1st;
   double max_cumu, frac_part;
-  double sub_mass, random, its_parent_mass;
-  double redshift_infall, merging_timescale;
+  double random, its_parent_mass;
   double redshift_infall_lower_limit;
   double redshift_at_merging, age_at_merge, age_at_0;
 
-  dream_call(double_malloc(mergers_params->length,
-                           &subhalo_mass_function_total),
-             _alloc_error_message_);
+  int *ID_first_orders;
+  int *all_orders;
+  double *all_masses, *all_zinfalls, *all_tau_merges;
 
-  { double this_psi; int index_psi;
 
-    for(i=0; i<mergers_params->length; i++){
+  do { //repeat loop until the generated number of subhaloes is positive
 
-      this_psi = pow(10., mergers_params->subhalo_mass_range[i]) / pow(10., mergers_params->halo_mass_at_z0);
-      index_psi = find_index(SHMF->psi, this_psi, SHMF->length_psi);
+    dream_call(double_malloc(mergers_params->length,
+                             &subhalo_mass_function_total),
+               _alloc_error_message_);
 
-      *(subhalo_mass_function_total+i) = *(SHMF->total+index_psi);
-    }
-  }
+    { double this_psi; int index_psi;
 
-  dream_call(compute_total_haloes_number(subhalo_mass_function_total,
-                                         mergers_params->subhalo_mass_range,
-                                         mergers_params->length,
-                                         &count),
-             _haloes_number_error_message_);
+      for(i=0; i<mergers_params->length; i++){
 
-   dream_call(double_calloc(mergers_params->length,
-                            &cum_shmf),
-              _alloc_error_message_);
+        this_psi = pow(10., mergers_params->subhalo_mass_range[i]) / pow(10., mergers_params->halo_mass_at_z0);
+        index_psi = find_index(SHMF->psi, this_psi, SHMF->length_psi);
 
-   dream_call(cumsum(subhalo_mass_function_total,
-                     mergers_params->length,
-                     &cum_shmf),
-              _cumsum_error_message_); //Cumulative SHMF
-
-  dream_call(double_calloc(mergers_params->length,
-                            &cum_shmf_1st),
-              _alloc_error_message_);
-
-  dream_call(cumsum(SHMF->first,
-                     mergers_params->length,
-                     &cum_shmf_1st),
-              _cumsum_error_message_); //Cumulative 1st order SHMF
-
-  if (want_redshift_at_merging == _True_) {
-
-    age_at_0 = linear_interp(0., cosmo_time->redshift, cosmo_time->age, cosmo_time->length);
-  }
-
-  int count_unwanted_orders = 0;
-
-  for (i=0; i<count; i++){
-
-    dream_call(generate_halo_from_mass_function(cum_shmf,
-                                                mergers_params->subhalo_mass_range,
-                                                mergers_params->length,
-                                                &sub_mass),
-               _mass_from_pdf_error_message_);
-
-    dream_call(assign_subhalo_order(mergers_params->max_order,
-                                     sub_mass,
-                                     mergers_params->halo_mass_at_z0,
-                                     SHMF, &order),
-                _assign_order_error_message_);
-
-    if (order == 1) {
-
-      double dphi, dz;
-      double z_array[halo_accretion->length-1], PDFz[halo_accretion->length-1];
-
-      for (j=0; j<halo_accretion->length-1; j++){
-
-        dphi = linear_interp(pow(10.,sub_mass)/pow(10.,halo_accretion->track[j]), SHMF->psi, SHMF->first, SHMF->length_psi) - \
-                linear_interp(pow(10.,sub_mass)/pow(10.,halo_accretion->track[j+1]) , SHMF->psi, SHMF->first, SHMF->length_psi);
-        dz = *(halo_accretion->redshift+j+1) - (*(halo_accretion->redshift+j));
-
-        *(PDFz+j) = dphi / dz;
-        *(z_array+j) = 0.5 * ( *(halo_accretion->redshift+j) + (*(halo_accretion->redshift+j+1)) );
-
+        *(subhalo_mass_function_total+i) = *(SHMF->total+index_psi);
       }
-
-      redshift_infall = get_random_from_distribution(z_array, PDFz, halo_accretion->length-1);
-
-      dream_call(compute_merging_timescale(mergers_params->halo_mass_at_z,
-                                            sub_mass,
-                                            redshift_infall,
-                                            mergers_params,
-                                            cosmo_params,
-                                            &merging_timescale),
-                  _merging_timescale_error_message_);
-
-    } else if (order>1) {
-
-      dream_call(generate_infall_redshift_higher_order(sub_mass,
-                                                        order,
-                                                        mergers_params->redshift,
-                                                        mergers_params->redshift_bin,
-                                                        mergers_params->redshift_max,
-                                                        &redshift_infall),
-                  _infall_redshift_error_message_);
-
-      dream_call(generate_halo_from_mass_function(cum_shmf_1st,
-                                                   mergers_params->subhalo_mass_range,
-                                                   mergers_params->length,
-                                                   &its_parent_mass),
-                  _mass_from_pdf_error_message_);
-
-      dream_call(compute_merging_timescale(its_parent_mass,
-                                            sub_mass,
-                                            redshift_infall,
-                                            mergers_params,
-                                            cosmo_params,
-                                            &merging_timescale),
-                  _merging_timescale_error_message_);
-
     }
 
-    if ((order > 0) && (redshift_infall < mergers_params->redshift_max) && (redshift_infall >= 0.)){
+    dream_call(compute_total_haloes_number(subhalo_mass_function_total,
+                                           mergers_params->subhalo_mass_range,
+                                           mergers_params->length,
+                                           &count),
+               _haloes_number_error_message_);
 
-      if (want_redshift_at_merging == _False_) {
+     dream_call(double_calloc(mergers_params->length,
+                              &cum_shmf),
+                _alloc_error_message_);
 
-        fprintf(file_pointer, "%d %d %lf %lf %.5le\n", mergers_params->id, \
-                           order, sub_mass, redshift_infall, merging_timescale);
+     dream_call(cumsum(subhalo_mass_function_total,
+                       mergers_params->length,
+                       &cum_shmf),
+                _cumsum_error_message_); //Cumulative SHMF
 
-      } else if (want_redshift_at_merging == 1) {
+    dream_call(double_calloc(SHMF->length_psi,
+                             &cum_shmf_1st),
+               _alloc_error_message_);
 
-        age_at_merge = linear_interp(redshift_infall, cosmo_time->redshift, \
-                       cosmo_time->age, cosmo_time->length) + merging_timescale;
+    dream_call(cumsum(SHMF->first,
+                      SHMF->length_psi,
+                      &cum_shmf_1st),
+               _cumsum_error_message_); //Cumulative 1st order SHMF
 
-        if (age_at_merge > age_at_0) {
+    if (want_redshift_at_merging == _True_) {
 
-          redshift_at_merging = -1.;
+      age_at_0 = linear_interp(0., cosmo_time->redshift, cosmo_time->age, cosmo_time->length);
+    }
 
-        } else if (age_at_merge <= age_at_0) {
+    int count_unwanted_orders = 0;
 
-          redshift_at_merging = linear_interp(age_at_merge, \
-                     cosmo_time->age, cosmo_time->redshift, cosmo_time->length);
+    int count_first_orders = 0;
+
+    dream_call(int_calloc(count_first_orders,
+                          &ID_first_orders),
+               _alloc_error_message_);
+
+    dream_call(int_calloc(count,
+                          &all_orders),
+               _alloc_error_message_);
+
+    dream_call(double_calloc(count,
+                             &all_masses),
+               _alloc_error_message_);
+
+    dream_call(double_calloc(count,
+                             &all_zinfalls),
+               _alloc_error_message_);
+
+    dream_call(double_calloc(count,
+                             &all_tau_merges),
+               _alloc_error_message_);
+
+
+    for (i=0; i<count; i++){
+
+      dream_call(generate_halo_from_mass_function(cum_shmf,
+                                                  mergers_params->subhalo_mass_range,
+                                                  mergers_params->length,
+                                                  &all_masses[i]),
+                 _mass_from_pdf_error_message_);
+
+      dream_call(assign_subhalo_order(mergers_params->max_order,
+                                      all_masses[i],
+                                      mergers_params->halo_mass_at_z0,
+                                      SHMF, &all_orders[i]),
+                 _assign_order_error_message_);
+
+      if (all_orders[i] == 1) {
+
+        count_first_orders += 1;
+        ID_first_orders = realloc(ID_first_orders, count_first_orders*sizeof(int));
+        ID_first_orders[count_first_orders-1] = get_int_random_uniform(100, 999);
+
+        double dphi, dz;
+        double z_array[halo_accretion->length-1], PDFz[halo_accretion->length-1];
+        double this_psi, this_psi_1;
+
+        for (j=0; j<halo_accretion->length-1; j++){
+
+          this_psi = pow(10., all_masses[i] - halo_accretion->track[j]);
+          this_psi_1 = pow(10., all_masses[i] - halo_accretion->track[j+1]);
+          dphi = linear_interp(this_psi, SHMF->psi, SHMF->first, SHMF->length_psi) - \
+                  linear_interp(this_psi_1 , SHMF->psi, SHMF->first, SHMF->length_psi);
+          dz = *(halo_accretion->redshift+j+1) - (*(halo_accretion->redshift+j));
+
+          if (this_psi < 1.) { *(PDFz+j) = dphi / dz; } else { PDFz[j] = 0.; }
+          *(z_array+j) = 0.5 * ( *(halo_accretion->redshift+j) + (*(halo_accretion->redshift+j+1)) );
+
         }
 
-        fprintf(file_pointer, "%d %d %lf %lf %.5le %lf\n", mergers_params->id, \
-          order, sub_mass, redshift_infall, merging_timescale, redshift_at_merging);
+        all_zinfalls[i] = get_random_from_distribution(z_array, PDFz, halo_accretion->length-1);
+
+        dream_call(compute_merging_timescale(linear_interp(all_zinfalls[i],
+                                                           halo_accretion->redshift,
+                                                           halo_accretion->track,
+                                                           halo_accretion->length),
+                                             all_masses[i],
+                                             all_zinfalls[i],
+                                             mergers_params,
+                                             cosmo_params,
+                                             &all_tau_merges[i]),
+                   _merging_timescale_error_message_);
+
+      } else if (all_orders[i]>1) {
+
+        dream_call(generate_infall_redshift_higher_order(all_masses[i],
+                                                         all_orders[i],
+                                                         mergers_params->redshift,
+                                                         mergers_params->redshift_bin,
+                                                         mergers_params->redshift_max,
+                                                         &all_zinfalls[i]),
+                   _infall_redshift_error_message_);
+
+        do {
+
+          dream_call(generate_halo_from_mass_function(cum_shmf_1st,
+                                                      mergers_params->subhalo_mass_range,
+                                                      mergers_params->length,
+                                                      &its_parent_mass),
+                     _mass_from_pdf_error_message_);
+
+        } while (its_parent_mass <= all_masses[i]);
+
+        dream_call(compute_merging_timescale(its_parent_mass,
+                                             all_masses[i],
+                                             all_zinfalls[i],
+                                             mergers_params,
+                                             cosmo_params,
+                                             &all_tau_merges[i]),
+                   _merging_timescale_error_message_);
 
       }
 
-    } else {
-      count_unwanted_orders += 1;
     }
-  }
+
+    int num_first_orders = count_first_orders;
+    count_first_orders = 0;
+
+    for (i=0; i<count; i++){
+
+      if ((all_orders[i] > 0) && (all_zinfalls[i] < mergers_params->redshift_max) && (all_zinfalls[i] >= 0.)){
+
+        if (all_orders[i] == 1) {
+
+          count_first_orders += 1;
+
+          fprintf(file_pointer, "%d -1 %d %d %lf %lf %.5le\n", mergers_params->id, ID_first_orders[count_first_orders-1], \
+                             all_orders[i], all_masses[i], all_zinfalls[i], all_tau_merges[i]);
+
+        } else if ( (all_orders[i] > 1) && (num_first_orders > 0) ) {
+
+          fprintf(file_pointer, "%d %d -1 %d %lf %lf %.5le\n", mergers_params->id, ID_first_orders[get_int_random_uniform(1,num_first_orders)-1], \
+                             all_orders[i], all_masses[i], all_zinfalls[i], all_tau_merges[i]);
+
+        } else {
+
+          count_unwanted_orders += 1;
+
+        }
+
+      } else {
+        count_unwanted_orders += 1;
+      }
+
+    }
+
+    *final_count = count - count_unwanted_orders;
+
+  } while (*final_count<0);
 
   dream_call(dealloc(subhalo_mass_function_total),
              _dealloc_error_message_);
@@ -1125,9 +1168,31 @@ int get_subhaloes(mergers_parameters *mergers_params,
   dream_call(dealloc(cum_shmf_1st),
               _dealloc_error_message_);
 
-  *final_count = count - count_unwanted_orders;
+  dream_call(dealloc(all_orders),
+             _dealloc_error_message_);
 
-  return _success_;
+  dream_call(dealloc(all_masses),
+             _dealloc_error_message_);
+
+  dream_call(dealloc(all_zinfalls),
+             _dealloc_error_message_);
+
+  dream_call(dealloc(all_tau_merges),
+             _dealloc_error_message_);
+
+  dream_call(dealloc(ID_first_orders),
+             _dealloc_error_message_);
+
+
+  if (*final_count >= 0) {
+
+    return _success_;
+
+  } else {
+
+    return _failure_;
+
+  }
 
 }
 
@@ -1165,8 +1230,6 @@ int generate_mergers(mergers_parameters *mergers_params,
   int i, N, Num_mergers;
   FILE *file_pointer;
 
-  //int j; for (j=0; j<len_track-1; j++){printf("%lf\n", z_range[j]);}
-
   char filename[24] = "data/output_mergers.txt";
   const size_t len1 = strlen(output_folder);
   const size_t len2 = strlen(filename);
@@ -1181,49 +1244,28 @@ int generate_mergers(mergers_parameters *mergers_params,
 
   file_pointer = fopen(output_filename, "a");
 
-  //Num_mergers = 0;
+  if (use_merger_tree == 1) {
 
-  /*for (i=0; i<len_track-1; i++){
+    dream_call(get_subhaloes_1st_order(mergers_params, halo_accretion->track[0], halo_accretion->track[0],
+                                        halo_accretion->redshift, halo_accretion->track, halo_accretion->length,
+                                        1, file_pointer, want_redshift_at_merging,
+                                        SHMF, cosmo_params, cosmo_time,
+                                        &Num_mergers),
+                _get_subhaloes_error_message_);
 
-    mergers_params->halo_mass_at_z = *(track+i);
-    mergers_params->halo_mass_at_z_plus_dz = *(track+i+1);
-    mergers_params->redshift = *(z_range+i);*/
+  } else if (use_merger_tree == 0) {
 
-    /*N = 0;
+    dream_call(get_subhaloes(mergers_params,
+                             halo_accretion,
+                             file_pointer,
+                              want_redshift_at_merging,
+                              SHMF,
+                              cosmo_params,
+                              cosmo_time,
+                              &Num_mergers),
+                _get_subhaloes_error_message_);
 
-    if (use_merger_tree == 1) {
-
-      dream_call(get_subhaloes_1st_order(mergers_params,
-                                          1,
-                                          file_pointer,
-                                          //M_to_R,
-                                          z_range,
-                                          len_track,
-                                          want_redshift_at_merging,
-                                          cosmo_params,
-                                          cosmo_time,
-                                          &N),
-                  _get_subhaloes_error_message_);
-
-      Num_mergers += N;
-
-    } else if (use_merger_tree == 0) {*/
-
-      dream_call(get_subhaloes(mergers_params,
-                               halo_accretion,
-                               file_pointer,
-                                want_redshift_at_merging,
-                                SHMF,
-                                cosmo_params,
-                                cosmo_time,
-                                &Num_mergers),
-                  _get_subhaloes_error_message_);
-
-    /*  Num_mergers += N;
-
-    }*/
-
-  //}
+  }
 
   fclose(file_pointer);
 
@@ -1232,3 +1274,6 @@ int generate_mergers(mergers_parameters *mergers_params,
 
   return Num_mergers;
 }
+
+
+#endif

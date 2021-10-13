@@ -77,7 +77,6 @@ def DREAM_track(halo_catalog,
         none
     """
 
-
     type_orbital_circularity = input_params_run.merging_timescale_params[0]
     orbital_circularity = input_params_run.merging_timescale_params[1]
     fudge = input_params_run.merging_timescale_params[2]
@@ -99,12 +98,24 @@ def DREAM_track(halo_catalog,
                                              mass_range,
                                              mass_range.size)
 
-    elif not use_mean_track:
+    elif not input_params_run.use_mean_track:
 
-        accretion_tracks = []
-        for i in tqdm(range(len(halo_catalog))):
-            i_th_track = halo_growth.Mass_acc_history_VDB_FS(halo_catalog[i], input_params_run.z_range, Cosmo.h, Cosmo.Om0)
-            accretion_tracks.append(i_th_track)
+        import warnings
+        warnings.filterwarnings("ignore")
+
+        print("")
+        sys.path.append(input_params_run.path_to_diffmah+"diffmah")
+        from monte_carlo_halo_population import mc_halo_population
+        print("")
+
+        t = Cosmo.age(input_params_run.z_range)
+        t0 = Cosmo.age(0)
+
+        def compute_mc_halo_track(t, t0, Mhalo, mah_type):
+            dmhdt, log_mah, early_index, late_index, lgtc, mah_type = mc_halo_population(t, t0, Mhalo, 1, mah_type)
+            return np.array( log_mah[0] )
+        accretion_tracks = [compute_mc_halo_track(t, t0, Mhalo, input_params_run.mah_type) for Mhalo in tqdm(halo_catalog)]
+
 
     print("Accretion tracks calculated")
 
@@ -125,10 +136,13 @@ def DREAM_track(halo_catalog,
         os.remove(input_params_run.output_folder + "data/output_mergers.txt")
     if os.path.isfile(input_params_run.output_folder + "data/output_parents.txt"):
         os.remove(input_params_run.output_folder + "data/output_parents.txt")
+    others.print_mergers_header(input_params_run.output_folder, input_params_run.want_z_at_merge)
 
     # print parents to file and create header for mergers file
-    others.print_parents(input_params_run.output_folder, id_list, halo_catalog)
-    others.print_mergers_header(input_params_run.output_folder, input_params_run.want_z_at_merge)
+    if input_params_run.use_mean_track:
+        others.print_parents(input_params_run.output_folder, id_list, halo_catalog)
+    elif not input_params_run.use_mean_track:
+        others.print_parents_with_mah(input_params_run.output_folder, id_list, accretion_tracks, input_params_run.z_range)
 
     if input_params_run.use_merger_tree == True:
         input_params_run.use_merger_tree = 1
@@ -145,10 +159,6 @@ def DREAM_track(halo_catalog,
         z_for_interp = np.array([])
         t_for_interp = np.array([])
         age_for_interp = np.array([])
-
-    """mergers_params = [0, 0., -1., -1., -1., input_params_run.z_range[1] - input_params_run.z_range[0], \
-                        input_params_run.z_range[-1], input_params_run.sub_mass_params, type_orbital_circularity, orbital_circularity, fudge, input_params_run.max_order]
-    mergers_params = mergers_parameters(*mergers_params)"""
 
     cosmo_params = [Cosmo.Om0, Cosmo.Ob0, Cosmo.sigma8, Cosmo.ns, Cosmo.h, Cosmo.H0,
                     Cosmo.Om(input_params_run.z_range), Cosmo.Ob(input_params_run.z_range), Cosmo.Hz(input_params_run.z_range), input_params_run.z_range, input_params_run.z_range.size]
@@ -170,26 +180,13 @@ def DREAM_track(halo_catalog,
     shmf_5th = vdB_USHMF_ith_order(Params_1st_order, Mhalo_MAX, np.arange(Mhalo_MIN, Mhalo_MAX, subhalo_mass_bin), 5)
     #shmf_all = shmf_1st + shmf_2nd + shmf_3rd
 
-    """for i in range(psi.size):
-        if -2. < np.log10(psi[i]):
-            f1 = 1.; f2 = 0.00001; f = np.log10(psi[i]) * 0.5 * (f2-f1) + f2
-            shmf_all[i] *= f; shmf_1st[i] *= f; shmf_2nd[i] *= f"""
-
     SHMF = [shmf_all, shmf_1st, shmf_2nd, shmf_3rd, shmf_4th, shmf_5th, psi, psi.size]
     SHMF = subhalo_mass_functions(*SHMF)
     ##################################
 
-    """import matplotlib.pyplot as plt
-    plt.ion()
-    plt.figure(1); plt.clf()
-    plt.plot(np.log10(psi), np.log10(shmf_all))
-    plt.plot(np.log10(psi), np.log10(shmf_1st))
-    plt.plot(np.log10(psi), np.log10(shmf_2nd))
-    plt.ylim(-3); plt.xlim(right=0.5)
-    plt.show()
-    sys.exit()"""
 
     print("\nGenerating mergers...")
+
     mergers.generate_mergers.restype = c_int
     Num_mergers = 0
     for i in tqdm(range(len(halo_catalog))):
@@ -210,9 +207,11 @@ def DREAM_track(halo_catalog,
                           input_params_run.z_range[1] - input_params_run.z_range[0], input_params_run.z_range[-1], \
                           (halo_catalog[i]+np.log10(input_params_run.sub_mass_res), halo_catalog[i], subhalo_mass_bin), \
                           type_orbital_circularity, orbital_circularity, fudge, input_params_run.max_order]
+        """mergers_params = [id_list[i], track[0], -1., -1., -1., \
+                          input_params_run.z_range[1] - input_params_run.z_range[0], input_params_run.z_range[-1], \
+                          (10.5, halo_catalog[i], subhalo_mass_bin), \
+                          type_orbital_circularity, orbital_circularity, fudge, input_params_run.max_order]"""
         mergers_params = mergers_parameters(*mergers_params)
-
-
 
         N = mergers.generate_mergers(mergers_params,
                                      halo_accretion,
@@ -223,6 +222,8 @@ def DREAM_track(halo_catalog,
                                      input_params_run.want_z_at_merge,
                                      cosmo_time,
                                      SHMF)
+
+        #print(N)
 
         Num_mergers += N
 

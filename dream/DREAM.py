@@ -1,5 +1,5 @@
 """
-DREAM (DiscRete sEmi-empiricAl Model)
+DREAM (DiscRete statistical sEmi-empiricAl Model)
 
 Authors:
 Hao Fu <h.fu@soton.ac.uk>

@@ -21,7 +21,7 @@ except:
 
 
 
-def SMHM_Grylls_param(DM, Params, z, scatter):
+def SMHM_Grylls_param(M_input, Params, z, scatter, inverse=False):
 
     """
     Grylls parametrization for the SMHM relation
@@ -35,36 +35,48 @@ def SMHM_Grylls_param(DM, Params, z, scatter):
     b = beta10 + beta11*zparameter
     g = gamma10 + gamma11*zparameter
 
-    SM = np.power(10, DM) * (2*N*np.power( (np.power(np.power(10,DM-M), -b) + np.power(np.power(10,DM-M), g)), -1))
-    SM = np.log10(SM)
+    if inverse==False:
+        M_output = np.power(10, M_input) * (2*N*np.power( (np.power(np.power(10, M_input - M), -b) + np.power(np.power(10, M_input - M), g)), -1))
+        M_output = np.log10(M_output)
+    elif inverse==True:
+        Mhalo = np.arange(9.5, 16.5, 0.05)
+        Mstar = np.power(10, Mhalo) * (2*N*np.power( (np.power(np.power(10, Mhalo - M), -b) + np.power(np.power(10, Mhalo - M), g)), -1))
+        Mstar = np.log10(Mstar)
+        M_output = interp1d(Mstar, Mhalo, fill_value="extrapolate")(M_input)
 
     if scatter !=0.:
-        return np.random.normal(loc = SM, scale = scatter, size = np.shape(SM))
+        return np.random.normal(loc = M_output, scale = scatter, size = np.shape(M_output))
     else:
-        return SM
+        return M_output
 
 
 
-def SMHM_Moster(DM, Params, z):
+def SMHM_Moster(M_input, Params, Scatter, z, inverse=False):
 
     """
     Moster SMHM relation
     """
 
-    M10, M11, SHMnorm10, SHMnorm11, beta10, beta11, gamma10, gamma11, Scatter = Params
+    M10, M11, SHMnorm10, SHMnorm11, beta10, beta11, gamma10, gamma11 = Params
     zparameter = np.divide(z, z+1)
     M = M10 + M11*zparameter
     N = SHMnorm10 + SHMnorm11*zparameter
     b = beta10 + beta11*zparameter
     g = gamma10 + gamma11*zparameter
 
-    SM = np.power(10, DM) * 2*N* np.power( (np.power(np.power(10,DM-M), -b) + np.power(np.power(10,DM-M), g)), -1)
-    SM = np.log10(SM)
+    if inverse==False:
+        M_output = np.power(10, M_input) * 2*N* np.power( (np.power(np.power(10,M_input-M), -b) + np.power(np.power(10,M_input-M), g)), -1)
+        M_output = np.log10(M_output)
+    elif inverse==True:
+        Mhalo = np.arange(10, 16, 0.05)
+        Mstar = np.power(10, Mhalo) * (2*N* np.power( (np.power(np.power(10,Mhalo-M), -b) + np.power(np.power(10,Mhalo-M), g)), -1))
+        Mstar = np.log10(Mstar)
+        M_output = interp1d(Mstar, Mhalo)(M_input)
 
     if Scatter !=0.:
-        return np.random.normal(loc = SM, scale = Scatter, size = np.shape(SM))
+        return np.random.normal(loc = M_output, scale = Scatter, size = np.shape(M_output))
     else:
-        return SM
+        return M_output
 
 
 def SMHM_Behroozi_2013(DarkMatter, z, Scatter):
@@ -163,10 +175,11 @@ def SMHM_matrix_v2(M_input, matrix, z_array, z, scatter, inverse=False):
     # if inverse==True, the function calculates and returns the Mhalo(Mstar)
     # and the scatter will be assumed in Mhalo at fixed Mstar
     # Default: inverse=False, the function calculates Mstar(Mhalo)
+    if scatter <= 0.: scatter = 1e-5
 
     Mstar = matrix[:,-1]
 
-    idx = bisect(z_array, z)
+    idx = bisect(z_array, z)-1
 
     Mhalo = matrix[:,idx]
 
@@ -182,17 +195,74 @@ def SMHM_matrix_v2(M_input, matrix, z_array, z, scatter, inverse=False):
 def compute_Mhalo_of_Mstar_for_Model(Mstar, z, Model):
 
     if Model == "Model_1":
-        filename = "Data/SMHM_relations/SMHM_constant_sigma.txt"
-    if Model == "Model_2":
-        filename = "Data/SMHM_relations/SMHM_Tomczak_extrapolated.txt"
-    if Model == "Grylls":
-        filename = "Data/SMHM_relations/SMHM_Grylls_extrapolated.txt"
-    if Model == "B19":
-        filename = "Data/SMHM_relations/SMHM_Behroozi_2019_extrapolated.txt"
-    if Model == "M18":
-        filename = "Data/SMHM_relations/SMHM_Moster_2018_extrapolated_v2.txt"
+        filename = path_to_dream + "Data/SMHM_relations/SMHM_constant_sigma.txt"
+    elif Model == "Model_2":
+        filename = path_to_dream + "Data/SMHM_relations/SMHM_Tomczak_extrapolated.txt"
+    elif Model == "G19":
+        filename = path_to_dream + "Data/SMHM_relations/SMHM_Grylls_extrapolated.txt"
+    elif Model == "B19":
+        filename = path_to_dream + "Data/SMHM_relations/SMHM_Behroozi_2019_extrapolated.txt"
+    elif Model == "M18":
+        filename = path_to_dream + "Data/SMHM_relations/SMHM_Moster_2018_extrapolated.txt"
+        #filename = path_to_dream + "Data/SMHM_relations/SMHM_Moster_2018_centrals.txt"
+    elif Model == "TNG":
+        filename = path_to_dream + "Data/SMHM_relations/SMHM_TNG100-1_fits.txt"
+
+    #print(filename)
 
     z_array = np.loadtxt(filename, skiprows=1, max_rows=1)[:-1]
     matrix = np.loadtxt(filename, skiprows=2)
 
     return SMHM_matrix_v2(Mstar, matrix, z_array, z, 0., True)
+
+
+
+def read_SMHM_matrix(Model, path_to_dream):
+
+    if path_to_dream[-1] != "/":
+        path_to_dream += "/"
+
+    # Model 0
+    if Model == "0":
+        z_array = np.loadtxt(path_to_dream + "Data/SMHM_relations/SMHM_null_sigma_extrapolated.txt", skiprows=1, max_rows=1)[:-1]
+        smhm_matrix = np.loadtxt(path_to_dream + "Data/SMHM_relations/SMHM_null_sigma_extrapolated.txt", skiprows=2)
+
+    # Model 1
+    if Model == "Model_1":
+        z_array = np.loadtxt(path_to_dream + "Data/SMHM_relations/SMHM_constant_sigma_extrapolated.txt", skiprows=1, max_rows=1)[:-1]
+        smhm_matrix = np.loadtxt(path_to_dream + "Data/SMHM_relations/SMHM_constant_sigma_extrapolated.txt", skiprows=2)
+
+    # Model 2
+    if Model == "Model_2":
+        z_array = np.loadtxt(path_to_dream + "Data/SMHM_relations/SMHM_Tomczak_extrapolated.txt", skiprows=1, max_rows=1)[:-1]
+        smhm_matrix = np.loadtxt(path_to_dream + "Data/SMHM_relations/SMHM_Tomczak_extrapolated.txt", skiprows=2)
+
+    # Model 3
+    if Model == "Model_3":
+        z_array = np.loadtxt(path_to_dream + "Data/SMHM_relations/SMHM_variable_sigma_extrapolated.txt", skiprows=1, max_rows=1)[:-1]
+        smhm_matrix = np.loadtxt(path_to_dream + "Data/SMHM_relations/SMHM_variable_sigma_extrapolated.txt", skiprows=2)
+
+    # Model 4
+    if Model == "Model_4":
+        z_array = np.loadtxt(path_to_dream + "Data/SMHM_relations/SMHM_Tomczak_variable_sigma_extrapolated.txt", skiprows=1, max_rows=1)[:-1]
+        smhm_matrix = np.loadtxt(path_to_dream + "Data/SMHM_relations/SMHM_Tomczak_variable_sigma_extrapolated.txt", skiprows=2)
+
+    if Model == "G19":
+        z_array = np.loadtxt(path_to_dream + "Data/SMHM_relations/SMHM_Grylls_extrapolated.txt", skiprows=1, max_rows=1)[:-1]
+        smhm_matrix = np.loadtxt(path_to_dream + "Data/SMHM_relations/SMHM_Grylls_extrapolated.txt", skiprows=2)
+
+    if Model == "B19":
+        z_array = np.loadtxt(path_to_dream + "Data/SMHM_relations/SMHM_Behroozi_2019_extrapolated.txt", skiprows=1, max_rows=1)[:-1]
+        smhm_matrix = np.loadtxt(path_to_dream + "Data/SMHM_relations/SMHM_Behroozi_2019_extrapolated.txt", skiprows=2)
+
+    if Model == "M18":
+        z_array = np.loadtxt(path_to_dream + "Data/SMHM_relations/SMHM_Moster_2018_extrapolated.txt", skiprows=1, max_rows=1)[:-1]
+        smhm_matrix = np.loadtxt(path_to_dream + "Data/SMHM_relations/SMHM_Moster_2018_extrapolated.txt", skiprows=2)
+        #z_array = np.loadtxt(path_to_dream + "Data/SMHM_relations/SMHM_Moster_2018_satellites.txt", skiprows=1, max_rows=1)[:-1]
+        #smhm_matrix = np.loadtxt(path_to_dream + "Data/SMHM_relations/SMHM_Moster_2018_satellites.txt", skiprows=2)
+
+    if Model == "TNG":
+        z_array = np.loadtxt(path_to_dream + "Data/SMHM_relations/SMHM_TNG100-1_fits.txt", skiprows=1, max_rows=1)[:-1]
+        smhm_matrix = np.loadtxt(path_to_dream + "Data/SMHM_relations/SMHM_TNG100-1_fits.txt", skiprows=2)
+
+    return z_array, smhm_matrix

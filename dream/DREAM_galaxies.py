@@ -42,13 +42,15 @@ satellite_galaxies = CDLL("dream/C_functions/baryonic_matter/satellite_galaxies.
 satellite_galaxies.get_satellite_galaxies_at_z.argtypes = [c_char_p, c_char_p, c_char_p, c_int, c_int,
                                                            #c_char_p,
                                                            POINTER(stellar_mass_halo_mass),
-                                                           c_double, c_int, c_int, c_int,
+                                                           c_double, c_int, c_int, c_int, c_int, c_int,
                                                            POINTER(mergers_parameters),
                                                            POINTER(cosmological_time),
                                                            POINTER(cosmological_parameters)]
 
 
 def DREAM_galaxies(input_params_run):
+
+    subhalo_mass_bin = 0.1
 
     logfile_name = input_params_run.output_folder + "output.log"
     file_name = input_params_run.output_folder + "data/output_parents.txt"
@@ -85,8 +87,12 @@ def DREAM_galaxies(input_params_run):
     type_orbital_circularity = input_params_run.merging_timescale_params[0]
     orbital_circularity = input_params_run.merging_timescale_params[1]
     fudge = input_params_run.merging_timescale_params[2]
-    mergers_params = [0, 0., -1., -1., -1., input_params_run.z_range[1] - input_params_run.z_range[0], \
-                        input_params_run.z_range[-1], input_params_run.sub_mass_params, type_orbital_circularity, orbital_circularity, fudge, input_params_run.max_order]
+    #mergers_params = [0, 0., -1., -1., -1., input_params_run.z_range[1] - input_params_run.z_range[0], \
+    #                    input_params_run.z_range[-1], input_params_run.sub_mass_params, type_orbital_circularity, orbital_circularity, fudge, input_params_run.max_order]
+    mergers_params = [0, 0, -1., -1., -1., \
+                      input_params_run.z_range[1] - input_params_run.z_range[0], input_params_run.z_range[-1], \
+                      (0., 0., subhalo_mass_bin), \
+                      type_orbital_circularity, orbital_circularity, fudge, input_params_run.max_order]
     mergers_params = mergers_parameters(*mergers_params)
 
     cosmo_params = [Cosmo.Om0, Cosmo.Ob0, Cosmo.sigma8, Cosmo.ns, Cosmo.h, Cosmo.H0,
@@ -110,6 +116,8 @@ def DREAM_galaxies(input_params_run):
                                                    input_params_run.SMHM,
                                                    input_params_run.satellites_redshift,
                                                    input_params_run.ignore_high_orders,
+                                                   input_params_run.include_sat_SF,
+                                                   input_params_run.include_mass_loss,
                                                    input_params_run.include_quenching,
                                                    input_params_run.include_stripping,
                                                    mergers_params,

@@ -50,14 +50,38 @@ def print_parents(output_folder, id_list, halo_catalog):
     return
 
 
+def print_parents_with_mah(output_folder, id_list, accretion_tracks, z):
+
+    fp = open(output_folder+"data/output_parents.txt", "w")
+    fp.write("# Catalogue of the parent halos.\n")
+    fp.write("# Colums and rows:\n")
+    fp.write("# 1st col: ID number identifying each halo\n")
+    fp.write("# 2nd col: halo mass in units of log10[M/Msun]\n")
+    fp.write("# Following columns: halo mass accretion histories\n")
+    fp.write("# 1st row: redshift for halo mass accretion histories\n")
+
+    for i in range(z.size-1):
+        fp.write("{:.6f} ".format(z[i]))
+    fp.write("{:.6f}".format(z[-1]))
+
+    for i in range(id_list.size):
+        fp.write("\n{:d}".format(id_list[i]))
+        for j in range(accretion_tracks[i].size):
+            fp.write(" {:.6f}".format(accretion_tracks[i][j]))
+
+    fp.close()
+
+    return
+
+
 def print_mergers_header(output_folder, want_z_at_merge):
 
     fp = open(output_folder+"data/output_mergers.txt", "w")
 
     if want_z_at_merge == "yes":
-        fp.write("# Mergers information.\n# Column:\n# 1) ID number identifying the corresponding central halo\n# 2) order of the subhalo\n# 3) subhalo mass in units of log10[M/Msun]\n# 4) redshift at first accretion\n# 5) merging timescale in units of [Gyr]\n# 6) redshift at full merging, set to -1 if time at merging is later than today\n\n")
+        fp.write("# Mergers information.\n# Column:\n# 1) ID number identifying the corresponding parent halo\n# 2) ID identifying the (i-1)-th order progenitor\n# 3) ID identifying the subhalo itself\n# 4) order of the subhalo\n# 5) subhalo mass in units of log10[M/Msun]\n# 6) redshift at first accretion\n# 7) merging timescale in units of [Gyr]\n# 8) redshift at full merging, set to -1 if time at merging is later than today\n\n")
     elif want_z_at_merge == "no":
-        fp.write("# Mergers information.\n# Column:\n# 1) ID number identifying the corresponding central halo\n# 2) order of the subhalo\n# 3) subhalo mass in units of log10[M/Msun]\n# 4) redshift at first accretion\n# 5) merging timescale in units of [Gyr]\n\n")
+        fp.write("# Mergers information.\n# Column:\n# 1) ID number identifying the corresponding parent halo\n# 2) ID identifying the (i-1)-th order progenitor\n# 3) ID identifying the subhalo itself\n# 4) order of the subhalo\n# 5) subhalo mass in units of log10[M/Msun]\n# 6) redshift at first accretion\n# 7) merging timescale in units of [Gyr]\n\n")
 
     fp.close()
 
@@ -93,9 +117,9 @@ def print_log_file(output_folder, parents_len, mergers_len, want_z_at_merge):
     fp.write("# Number of rows and columns of parents output file.\n{:d} {:d} {:d}\n".format(0, parents_len, 2))
 
     if want_z_at_merge == 1:
-        fp.write("# Number of rows and columns of mergers output file.\n{:d} {:d} {:d}\n".format(1, mergers_len, 6))
+        fp.write("# Number of rows and columns of mergers output file.\n{:d} {:d} {:d}\n".format(1, mergers_len, 8))
     elif want_z_at_merge == 0:
-        fp.write("# Number of rows and columns of mergers output file.\n{:d} {:d} {:d}\n".format(1, mergers_len, 5))
+        fp.write("# Number of rows and columns of mergers output file.\n{:d} {:d} {:d}\n".format(1, mergers_len, 7))
 
     fp.close()
 

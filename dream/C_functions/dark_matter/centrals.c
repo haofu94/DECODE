@@ -206,14 +206,14 @@ int Mass_acc_history_VDB(double M0,
 
 
 
-double * Mass_acc_history_VDB_(double M0,
+int Mass_acc_history_VDB_(double M0,
                               double *zc,
                               double h,
                               double omega_m,
                               double omega_b,
                               double sigma_8,
                               double spectral_index,
-                              int len){
+                              int len, double **logMz){
 
   int i, j;
   // Parameters for average
@@ -270,9 +270,7 @@ double * Mass_acc_history_VDB_(double M0,
   }
 
   int nz = len;
-  double *logMz;
-  logMz = (double *)malloc(nz* sizeof(double));
-  logMz[0] = M0; //The first element is the last element
+  *logMz[0] = M0; //The first element is the last element
   double dcz, logpsi;
   double gam = 0.4;
   double *wz, *wtz, *x_array;
@@ -289,7 +287,7 @@ double * Mass_acc_history_VDB_(double M0,
       *(x_array+j) = *(Fpsi+j) - (*(wtz+j));
     }
     logpsi = linear_interp(0., x_array, logpsiz, mass_resolution);
-    *(logMz+i) = logpsi + M0;
+    *(*logMz+i) = logpsi + M0;
   }
 
   free(logMzc); logMzc = NULL;
@@ -304,7 +302,7 @@ double * Mass_acc_history_VDB_(double M0,
   free(wtz); wtz = NULL;
   free(x_array); x_array = NULL;
 
-  return logMz;
+  return _success_;
 }
 
 
