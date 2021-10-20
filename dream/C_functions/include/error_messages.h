@@ -44,6 +44,7 @@
 #define _Mhalo_track_to_Mstar_track_error_message_ "\nFailed to convert Mhalo track to Mstar track.\n"
 #define _merged_stellar_mass_error_message_ "\nFailed to compute stellar mass from mergers.\n"
 #define _compute_SFR_error_message_ "\nFailed to compute SFR.\n"
+#define _compute_ellipticals_error_message_ "\nFailed to compute the fraction of elliptical galaxies.\n"
 
 
 #endif

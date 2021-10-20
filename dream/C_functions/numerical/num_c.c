@@ -790,4 +790,134 @@ double *read_data(int halo_type,
 }
 
 
+
+int load_data_int(int halo_type,
+                  char *logfile_name,
+                  char *file_name,
+                  int column,
+                  int **data){
+
+  int i, j, stop, len, Num_columns;
+  FILE *file_pointer;
+
+  int skiprows = 10;
+  int max_line_length = 1000;
+  char line[max_line_length];
+  int headlines = 0;
+  char * left;
+
+  file_pointer = fopen(logfile_name, "r");
+
+  stop=0;
+  while (fgets(line, max_line_length, file_pointer) != NULL) {
+    headlines++;
+
+    /* Eliminate blank spaces at beginning of line */
+    left=line;
+    while (left[0]==' ') {
+        left++;
+    }
+
+    if ((left[0] != '#') && (left[0] != '\n')) {
+      sscanf(line, "%d %d %d", &stop, &len, &Num_columns);
+      if (stop == halo_type) {
+        break;}
+    }
+  }
+
+  fclose(file_pointer);
+
+  double *data_trial;
+  data_trial = (double *)calloc(Num_columns, sizeof(double));
+
+  file_pointer = fopen(file_name, "r");
+
+  if (Num_columns == 2){
+    j = 0;
+    for (i=0; i<len+skiprows; i++){
+      fgets(line,max_line_length, file_pointer);
+      if ((line[0] != '#') && (line[0] != '\n')){
+        sscanf(line, "%lf %lf", &data_trial[0], &data_trial[1]);
+        *(*data+j) = (int)(*(data_trial+column));
+        j += 1;
+      }
+      if (j==len){
+        break;
+      }
+    }
+  } else if (Num_columns == 3){
+    j = 0;
+    for (i=0; i<len+skiprows; i++){
+      fgets(line,max_line_length, file_pointer);
+      if ((line[0] != '#') && (line[0] != '\n')){
+        sscanf(line, "%lf %lf %lf", &data_trial[0], &data_trial[1], &data_trial[2]);
+        *(*data+j) = (int)(*(data_trial+column));
+        j += 1;
+      }
+      if (j==len){
+        break;
+      }
+    }
+  } else if (Num_columns == 4){
+    j = 0;
+    for (i=0; i<len+skiprows; i++){
+      fgets(line,max_line_length, file_pointer);
+      if ((line[0] != '#') && (line[0] != '\n')){
+        sscanf(line, "%lf %lf %lf %lf", &data_trial[0], &data_trial[1], &data_trial[2], &data_trial[3]);
+        *(*data+j) = (int)(*(data_trial+column));
+        j += 1;
+      }
+      if (j==len){
+        break;
+      }
+    }
+  } else if (Num_columns == 5){
+    j = 0;
+    for (i=0; i<len+skiprows; i++){
+      fgets(line,max_line_length, file_pointer);
+      if ((line[0] != '#') && (line[0] != '\n')){
+        sscanf(line, "%lf %lf %lf %lf %lf", &data_trial[0], &data_trial[1], &data_trial[2], &data_trial[3], &data_trial[4]);
+        *(*data+j) = (int)(*(data_trial+column));
+        j += 1;
+      }
+      if (j==len){
+        break;
+      }
+    }
+  } else if (Num_columns == 6){
+    j = 0;
+    for (i=0; i<len+skiprows; i++){
+      fgets(line,max_line_length, file_pointer);
+      if ((line[0] != '#') && (line[0] != '\n')){
+        sscanf(line, "%lf %lf %lf %lf %lf %lf", &data_trial[0], &data_trial[1], &data_trial[2], &data_trial[3], &data_trial[4], &data_trial[5]);
+        *(*data+j) = (int)(*(data_trial+column));
+        j += 1;
+      }
+      if (j==len){
+        break;
+      }
+    }
+  } else if (Num_columns == 7){
+    j = 0;
+    for (i=0; i<len+skiprows; i++){
+      fgets(line,max_line_length, file_pointer);
+      if ((line[0] != '#') && (line[0] != '\n')){
+        sscanf(line, "%lf %lf %lf %lf %lf %lf %lf", &data_trial[0], &data_trial[1], &data_trial[2], &data_trial[3], &data_trial[4], &data_trial[5], &data_trial[6]);
+        *(*data+j) = (int)(*(data_trial+column));
+        j += 1;
+      }
+      if (j==len){
+        break;
+      }
+    }
+  }
+
+  fclose(file_pointer);
+
+  dream_call(dealloc(data_trial), _dealloc_error_message_);
+
+  return _success_;
+}
+
+
 #endif

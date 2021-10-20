@@ -2,7 +2,8 @@
   *
   * Written by Hao Fu
   *
-  *
+  * The main goal of this module is to compute the population of
+  * central galaxies at the given redshift of observation.
   **/
 
 
@@ -23,11 +24,12 @@ void get_central_galaxies(char *logfile_name,
                           char *file_name,
                           char *output_folder,
                           int len_centrals,
+                          double observed_redshift,
                           stellar_mass_halo_mass *SMHM){
 
   int i, j;
   double *centrals;
-  double *id_centrals;
+  int *id_centrals;
   FILE *file_pointer;
 
   SMHM_matrix *smhm_data;
@@ -45,21 +47,19 @@ void get_central_galaxies(char *logfile_name,
   strcpy(output_filename, output_folder);
   strcpy(output_filename + len1, filename);
 
-  //centrals = read_data(0, logfile_name, file_name, 1);
-  //id_centrals = read_data(0, logfile_name, file_name, 0);
   dream_call(double_malloc(len_centrals, &centrals), _alloc_error_message_);
-  dream_call(double_malloc(len_centrals, &id_centrals), _alloc_error_message_);
+  dream_call(int_malloc(len_centrals, &id_centrals), _alloc_error_message_);
   dream_call(load_data(0, logfile_name, file_name, 1, &centrals), _load_data_error_message_);
-  dream_call(load_data(0, logfile_name, file_name, 0, &id_centrals), _load_data_error_message_);
+  dream_call(load_data_int(0, logfile_name, file_name, 0, &id_centrals), _load_data_error_message_);
 
   file_pointer = fopen(output_filename, "a");
 
   for (i=0; i<len_centrals; i++){
 
-    dream_call(SMHM_numerical_interp(*(centrals+i), SMHM, smhm_data, 0.1, &(*(centrals+i))),
+    dream_call(SMHM_numerical_interp(*(centrals+i), SMHM, smhm_data, observed_redshift, &(*(centrals+i))),
                _SMHM_error_message_);
 
-    fprintf(file_pointer, "%d %lf\n", (int)(*(id_centrals+i)), *(centrals+i));
+    fprintf(file_pointer, "%d %lf\n", *(id_centrals+i), *(centrals+i));
 
   }
 

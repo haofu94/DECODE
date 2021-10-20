@@ -2,7 +2,8 @@
   *
   * Written by Hao Fu
   *
-  *
+  * The main goal of this module is to compute the population of
+  * satellite galaxies at the given redshift of observation.
   **/
 
 
@@ -17,6 +18,7 @@
 #include "../numerical/allocate.c"
 #include "../dark_matter/mergers.c"
 #include "../dark_matter/Mhalo_to_Mstar.c"
+#include "ellipticals.c"
 #include "../star_formation/star_formation_satellites.c"
 
 
@@ -68,23 +70,24 @@ void get_satellite_galaxies_at_z(char *logfile_name,
                                  int len_mergers,
                                  int len_parents,
                                  stellar_mass_halo_mass *SMHM,
-                                 double satellites_redshift,
+                                 double observed_redshift,
                                  int ignore_high_orders,
                                  int include_sat_SF,
                                  int include_mass_loss,
                                  int include_quenching,
                                  int include_stripping,
+                                 int compute_ellipticals,
                                  mergers_parameters *mergers_params,
                                  cosmological_time *cosmo_time,
                                  cosmological_parameters *cosmo_params){
 
   int i, j, k;
-  double *id_parents;
+  int *id_parents;
   double *mass_parents;
-  double *parID_satellites;
-  double *upID_satellites;
-  double *id_satellites;
-  double *order;
+  int *parID_satellites;
+  int *upID_satellites;
+  int *id_satellites;
+  int *order;
   double *satellites;
   double *redshift_infall;
   double *merging_timescale;
@@ -121,23 +124,23 @@ void get_satellite_galaxies_at_z(char *logfile_name,
   strcpy(path_parents + len1, filename_parents);
   //double *id_parents = read_data(0, logfile_name, path_parents, 0);
   //double *mass_parents = read_data(0, logfile_name, path_parents, 1);
-  dream_call(double_malloc(len_parents, &id_parents), _alloc_error_message_);
+  dream_call(int_malloc(len_parents, &id_parents), _alloc_error_message_);
   dream_call(double_malloc(len_parents, &mass_parents), _alloc_error_message_);
-  dream_call(load_data(0, logfile_name, path_parents, 0, &id_parents), _load_data_error_message_);
+  dream_call(load_data_int(0, logfile_name, path_parents, 0, &id_parents), _load_data_error_message_);
   dream_call(load_data(0, logfile_name, path_parents, 1, &mass_parents), _load_data_error_message_);
   dealloc(path_parents);
 
-  dream_call(double_malloc(len_mergers, &parID_satellites), _alloc_error_message_);
-  dream_call(double_malloc(len_mergers, &upID_satellites), _alloc_error_message_);
-  dream_call(double_malloc(len_mergers, &id_satellites), _alloc_error_message_);
-  dream_call(double_malloc(len_mergers, &order), _alloc_error_message_);
+  dream_call(int_malloc(len_mergers, &parID_satellites), _alloc_error_message_);
+  dream_call(int_malloc(len_mergers, &upID_satellites), _alloc_error_message_);
+  dream_call(int_malloc(len_mergers, &id_satellites), _alloc_error_message_);
+  dream_call(int_malloc(len_mergers, &order), _alloc_error_message_);
   dream_call(double_malloc(len_mergers, &satellites), _alloc_error_message_);
   dream_call(double_malloc(len_mergers, &redshift_infall), _alloc_error_message_);
   dream_call(double_malloc(len_mergers, &merging_timescale), _alloc_error_message_);
-  dream_call(load_data(1, logfile_name, file_name, 0, &parID_satellites), _load_data_error_message_);
-  dream_call(load_data(1, logfile_name, file_name, 1, &upID_satellites), _load_data_error_message_);
-  dream_call(load_data(1, logfile_name, file_name, 2, &id_satellites), _load_data_error_message_);
-  dream_call(load_data(1, logfile_name, file_name, 3, &order), _load_data_error_message_);
+  dream_call(load_data_int(1, logfile_name, file_name, 0, &parID_satellites), _load_data_error_message_);
+  dream_call(load_data_int(1, logfile_name, file_name, 1, &upID_satellites), _load_data_error_message_);
+  dream_call(load_data_int(1, logfile_name, file_name, 2, &id_satellites), _load_data_error_message_);
+  dream_call(load_data_int(1, logfile_name, file_name, 3, &order), _load_data_error_message_);
   dream_call(load_data(1, logfile_name, file_name, 4, &satellites), _load_data_error_message_);
   dream_call(load_data(1, logfile_name, file_name, 5, &redshift_infall), _load_data_error_message_);
   dream_call(load_data(1, logfile_name, file_name, 6, &merging_timescale), _load_data_error_message_);
@@ -192,7 +195,7 @@ void get_satellite_galaxies_at_z(char *logfile_name,
 
       if (order[j] == 1){
 
-        if (z_at_merge[j] > satellites_redshift) {
+        if (z_at_merge[j] > observed_redshift) {
 
           /*
           CASE 1
@@ -203,7 +206,7 @@ void get_satellite_galaxies_at_z(char *logfile_name,
 
             if ( (parID_satellites[k] == parID_satellites[j]) && (upID_satellites[k] == id_satellites[j]) ){
 
-              if ( (z_at_merge[k] <= z_at_merge[j]) && (z_at_merge[k] > satellites_redshift) ) {
+              if ( (z_at_merge[k] <= z_at_merge[j]) && (z_at_merge[k] > observed_redshift) ) {
 
                 /*
                 The second order subhalo does not merge before the first order does
@@ -230,7 +233,7 @@ void get_satellite_galaxies_at_z(char *logfile_name,
                    dream_call(get_evolved_satellite_mass(SMHM, smhm_data,
                                                          mass_parents[idx_par],
                                                          *(satellites+k),
-                                                         satellites_redshift,
+                                                         observed_redshift,
                                                          *(redshift_infall+j),
                                                          include_sat_SF,
                                                          include_mass_loss,
@@ -241,13 +244,13 @@ void get_satellite_galaxies_at_z(char *logfile_name,
                                                          &sat_2nd_mass),
                               _mstar_at_z_error_message_);
 
-                   fprintf(file_pointer, "%d %d %lf\n", (int)(*(id_satellites+k)), (int)(*(order+k)), sat_2nd_mass);
+                   fprintf(file_pointer, "%d %d %lf\n", *(id_satellites+k), *(order+k), sat_2nd_mass);
                  }
                }
              }
            }
 
-        } else if (z_at_merge[j] <= satellites_redshift) {
+        } else if (z_at_merge[j] <= observed_redshift) {
 
           /*
           CASE 2
@@ -257,7 +260,7 @@ void get_satellite_galaxies_at_z(char *logfile_name,
           dream_call(get_evolved_satellite_mass(SMHM, smhm_data,
                                                 *(mass_parents+i),
                                                 *(satellites+j),
-                                                satellites_redshift,
+                                                observed_redshift,
                                                 *(redshift_infall+j),
                                                 include_sat_SF,
                                                 include_mass_loss,
@@ -294,13 +297,13 @@ void get_satellite_galaxies_at_z(char *logfile_name,
 
                 satellite_mass = log10( pow(10., satellite_mass) + pow(10., sat_2nd_mass) );
 
-              } else if ( (z_at_merge[k] <= z_at_merge[j]) && (z_at_merge[k] <= satellites_redshift) ) {
+              } else if ( (z_at_merge[k] <= z_at_merge[j]) && (z_at_merge[k] <= observed_redshift) ) {
 
                 /*
                 The second order does not merge
                 */
 
-                fprintf(file_pointer, "%d %d %lf\n", (int)(*(id_satellites+k)), (int)(*(order+k)), sat_2nd_mass);
+                fprintf(file_pointer, "%d %d %lf\n", *(id_satellites+k), *(order+k), sat_2nd_mass);
 
               }
 
@@ -308,7 +311,7 @@ void get_satellite_galaxies_at_z(char *logfile_name,
 
           }
 
-          fprintf(file_pointer, "%d %d %lf\n", (int)(*(id_satellites+j)), (int)(*(order+j)), satellite_mass);
+          fprintf(file_pointer, "%d %d %lf\n", *(id_satellites+j), *(order+j), satellite_mass);
 
         }
 
@@ -322,7 +325,42 @@ void get_satellite_galaxies_at_z(char *logfile_name,
   }
 
 
+  /*
+  COMPUTE ELLIPTICAL (CENTRAL) GALAXIES
+  */
+
+  if (compute_ellipticals == _True_) {
+
+    DM_catalogue *halo_catalogue = malloc(sizeof(DM_catalogue));
+    halo_catalogue->id_parents = id_parents;
+    halo_catalogue->mass_parents = mass_parents;
+    halo_catalogue->len_parents = len_parents;
+    halo_catalogue->len_mergers = len_mergers;
+    halo_catalogue->id_mergers = parID_satellites;
+    halo_catalogue->order_mergers = order;
+    halo_catalogue->mass_mergers = satellites;
+    halo_catalogue->z_infall = redshift_infall;
+    halo_catalogue->z_at_merge = z_at_merge;
+
+    dream_call(compute_fraction_ellipticals(file_name,
+                                            output_folder,
+                                            halo_catalogue,
+                                            observed_redshift,
+                                            SMHM, smhm_data,
+                                            include_sat_SF,
+                                            include_mass_loss,
+                                            include_quenching,
+                                            include_stripping,
+                                            cosmo_params,
+                                            cosmo_time),
+               _compute_ellipticals_error_message_);
+
+    dream_call(dealloc(halo_catalogue), _dealloc_error_message_);
+
+  }
+
   printf("\n");
+
 
   fclose(file_pointer);
 
